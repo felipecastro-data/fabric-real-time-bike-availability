@@ -1,6 +1,6 @@
 # Project plan & progress
 
-**Progress: Step 2 in progress — 1 of 8 steps done (Step 2 ≈ 50 %)**
+**Progress: Step 2 done — 2 of 8 steps**
 
 Fabric Real-Time Bike Availability: a streaming + CDC/SCD2 platform on the Divvy domain. Operations see which
 Chicago stations are about to run empty or full, minutes ahead; analysts get station history (renames, capacity
@@ -102,7 +102,7 @@ definitions (notebooks, KQL schema script, dashboard, semantic model). Same spli
 | # | Step | Status |
 |---|------|--------|
 | 1 | Foundations & spikes — repo skeleton, CI, OIDC for this repo, HCP workspace, 3 risk spikes | ✅ |
-| 2 | Terraform — 3 workspaces, lakehouses, Eventhouse + KQL DB, Eventstream, shortcuts, deployment pipeline, TF CI | ⬜ |
+| 2 | Terraform — 3 workspaces, lakehouses, Eventhouse + KQL DB, Eventstream, shortcuts, deployment pipeline, TF CI | ✅ |
 | 3 | Ingestion — GBFS client, poller notebook, daily `station_information` snapshot | ⬜ |
 | 4 | Hot path — Eventstream routing, KQL tables, update policy, MVs, retention | ⬜ |
 | 5 | Warm path — Structured Streaming Silver + dead-letter, Gold 15-min fact | ⬜ |
@@ -162,9 +162,11 @@ pause by **2026-12-08**, buffer to trial end.
 - [x] Workspace/pipeline ID repo variables after the first apply (`FABRIC_WORKSPACE_ID_DEV/TEST/PROD`, `FABRIC_DEPLOYMENT_PIPELINE_ID`)
 - [x] `terraform` workflow: fmt · validate · tflint · plan comment · approval-gated apply — first apply 2026-11-12:
       35 added as the service principal; all items + shortcuts verified in dev/test/prod
-- [ ] 0 drift after apply — **blocked**: `divvy-rti-test/es_station_status` (`b40894fe-…`) is Active in the admin API
-      but returns `Unauthorized` to the human admin (dev/prod fine), so a local plan fails reading it
-- [ ] Delete the temporary `divvy-rti-spike` workspace (ask first)
+- [x] 0 drift after apply (local plan as the human admin + CI plan as the service principal, 2026-11-12).
+      Quirk: the first `divvy-rti-test/es_station_status` was Active and readable by the service principal but
+      `Unauthorized` and unlisted for the human Admin. Fixed by recreating it from CI: run `terraform` manually with
+      `replace = module.workspace["test"].fabric_eventstream.this` (new id `609a37cc-…`).
+- [x] Delete the temporary `divvy-rti-spike` workspace (2026-11-12)
 
 ### Step 3 — Ingestion
 - [ ] `gbfs.py`: discovery, conditional GET (ETag), skip unchanged `last_updated`, retries with backoff, typed event model
