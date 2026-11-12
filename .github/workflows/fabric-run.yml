@@ -1,0 +1,54 @@
+name: fabric-run
+
+# Manual, bounded notebook run AS THE SERVICE PRINCIPAL (the identity prod schedules run as).
+# Optionally uploads the wheel built from this commit to lh_bronze/Files/wheels first.
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Target workspace
+        type: choice
+        options: [dev, test, prod]
+        default: dev
+      notebook:
+        description: Notebook to run
+        type: choice
+        options: [nb_gbfs_poller, nb_bronze_station_information]
+        default: nb_gbfs_poller
+      parameters:
+        description: 'Notebook parameters as JSON, e.g. {"duration_minutes": "3"}'
+        required: false
+        default: '{"duration_minutes": "3"}'
+      upload_wheel:
+        description: Upload the wheel built from this commit first
+        type: boolean
+        default: true
+
+permissions:
+  id-token: write # GitHub OIDC -> Entra service principal (no stored cloud secrets)
+  contents: read
+
+concurrency:
+  group: fabric-run-${{ inputs.environment }}
+  cancel-in-progress: false
+
+jobs:
+  run:
+    name: ${{ inputs.notebook }} in ${{ inputs.environment }}
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    timeout-minutes: 90
+    env:
+      AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+      AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+      WORKSPACE_ID: ${{ inputs.environment == 'prod' && vars.FABRIC_WORKSPACE_ID_PROD || inputs.environment == 'test' && vars.FABRIC_WORKSPACE_ID_TEST || vars.FABRIC_WORKSPACE_ID_DEV }}
+      NOTEBOOK: ${{ inputs.notebook }}
+      PARAMETERS: ${{ inputs.parameters }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.3.1
+      - name: Upload wheel
+        if: inputs.upload_wheel
+        run: uv run --no-project python tools/fabric_ops.py upload-wheel "$WORKSPACE_ID"
+      - name: Run notebook
+        run: uv run --no-project python tools/fabric_ops.py run "$WORKSPACE_ID" "$NOTEBOOK" "$PARAMETERS"

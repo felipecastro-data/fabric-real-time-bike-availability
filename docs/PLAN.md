@@ -179,8 +179,21 @@ pause by **2026-12-08**, buffer to trial end.
       Git connection yet). Smoke 2026-11-12 from the Mac (`AzureCliCredential`): one live poll = 2,079 events sent and
       2,079 read back, no duplicates. **Batch cap 64 KB**: 256 KB and 1 MB batches failed with an AMQP "write operation
       timed out" (nothing landed); test/prod get the definition through the deployment pipeline.
-- [ ] `nb_gbfs_poller` (loop ~55 min, batched sends, structured logs) + hourly `fabric_item_job_scheduler` (prod only)
-- [ ] `nb_bronze_station_information`: daily snapshot, idempotent replace per `snapshot_date`
+- [x] `nb_gbfs_poller` (Python notebook; loop ~55 min, batched sends ≤ 64 KB, one JSON log line per poll, run summary in
+      `lh_bronze/Files/runs/`). Loop logic in `divvy_rti.stream` (tested); custom endpoint found by name at run time, so
+      no per-stage settings. Dev run as the user 2026-11-12 (3 min): 3 polls, 6,237 events sent, 0 failures.
+- [x] Hourly `fabric_item_job_scheduler` (prod only) + daily `nb_bronze_station_information` schedule, both gated by
+      `prod_poller_schedule_enabled` (default false: the notebooks reach prod through the deployment pipeline) and
+      limited to `prod_poller_window` 2026-11-28 → 12-05.
+- [ ] **Service-principal run**: after merge, run the `fabric-run` workflow (dev, `nb_gbfs_poller`) → checks that
+      `notebookutils.credentials.getToken` works for Event Hubs and the Fabric API when the job runs as the service principal
+- [ ] Delete the probe notebook `nb_probe_tmp` in `divvy-rti-dev` (created while debugging the item-list lag)
+- [x] `nb_bronze_station_information`: daily snapshot, idempotent replace per `snapshot_date` (Chicago date), delta-rs,
+      `dbo.station_information` + raw JSON. Dev 2026-11-12: two runs → 2,079 rows (not 4,158).
+- [x] Wheel delivery: `tools/fabric_ops.py upload-wheel` → `lh_bronze/Files/wheels/`; notebooks `pip install` it at start
+      (`azure-eventhub` comes in as a dependency). The `fabric-run` workflow uploads the wheel from its commit first.
+      Lessons: OneLake paths need both IDs or both names (no mix); a new item can take ~2 min to appear in the item
+      list; the job API failure text is generic, so notebooks write run records with tracebacks.
 - [x] Tests on recorded fixtures (20 stations: 10 classic, 10 lightweight): parsing, unchanged-feed skip, retry, malformed station, real 304 path
 
 ### Step 4 — Hot path

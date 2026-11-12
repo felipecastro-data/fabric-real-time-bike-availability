@@ -70,3 +70,21 @@ variable "environments" {
     error_message = "Environment keys must be dev, test or prod."
   }
 }
+
+variable "prod_poller_schedule_enabled" {
+  description = "Schedule nb_gbfs_poller hourly and nb_bronze_station_information daily in prod. The notebook reaches prod through the deployment pipeline, so a fresh environment applies with false first, then true for the 7-day prod run."
+  type        = bool
+  default     = false
+}
+
+variable "prod_poller_window" {
+  description = "UTC window of the prod streaming run: the prod schedules fire only between these times."
+  type = object({
+    start = string
+    end   = string
+  })
+  default = {
+    start = "2026-11-28T00:00:00Z"
+    end   = "2026-12-05T00:00:00Z"
+  }
+}

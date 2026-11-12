@@ -14,9 +14,11 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any, Literal
+from zoneinfo import ZoneInfo
 
 DISCOVERY_URL = "https://gbfs.lyft.com/gbfs/2.3/chi/gbfs.json"
 SCHEMA_VERSION = 1
+CHICAGO = ZoneInfo("America/Chicago")
 RETRYABLE_STATUS = frozenset({429, 500, 502, 503, 504})
 
 REQUIRED_COUNTS = ("num_bikes_available", "num_docks_available")
@@ -212,3 +214,34 @@ class StationStatusPoller:
         events, rejected = parse_station_status(response.body, poll_id=poll_id, polled_at=polled_at)
         self.last_updated = last_updated
         return PollResult(poll_id, polled_at, "new", _iso(last_updated), events, rejected)
+
+
+INFORMATION_COLUMNS = (
+    "station_id",
+    "name",
+    "short_name",
+    "lat",
+    "lon",
+    "capacity",
+    "region_id",
+    "address",
+    "is_charging",
+)
+
+
+def station_information_rows(payload: dict[str, Any], fetched_at: datetime) -> tuple[str, list[dict[str, Any]]]:
+    """Bronze rows for one `station_information.json` snapshot: the GBFS columns (missing → None; lightweight stations
+    have no `short_name`), the station as raw JSON, and lineage. `snapshot_date` is the feed's Chicago date."""
+    feed_last_updated = datetime.fromtimestamp(payload["last_updated"], UTC)
+    snapshot_date = feed_last_updated.astimezone(CHICAGO).date().isoformat()
+    rows = [
+        {
+            **{column: station.get(column) for column in INFORMATION_COLUMNS},
+            "raw": json.dumps(station, sort_keys=True),
+            "feed_last_updated": feed_last_updated,
+            "fetched_at": fetched_at,
+            "snapshot_date": snapshot_date,
+        }
+        for station in payload["data"]["stations"]
+    ]
+    return snapshot_date, rows
