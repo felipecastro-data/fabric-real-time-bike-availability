@@ -134,6 +134,7 @@ pause by **2026-12-08**, buffer to trial end.
 - [x] `pyproject.toml` (uv, ruff, pytest, chispa, pyspark 3.5.5, delta-spark 3.2.1), `Makefile` (`make check`), devcontainer, `.env.example`, MIT license
 - [x] `ci` workflow: ruff · pytest · Fabric item validator · wheel check · actionlint → single `ci` gate (green locally and on GitHub)
 - [x] HCP Terraform workspace `fabric-rti-platform` (execution mode Local, `ws-A8VwDZqVFHCmHy2M`, same project as `fabric-medallion-platform`)
+- [x] Spike workspace `divvy-rti-spike` (`4763d7f6-5e33-4995-8dfe-8671ea567351`, trial FTL64, West US) — **delete after Step 1**
 - [ ] Spike A: Python notebook sends a batch to an Eventstream custom endpoint with **Entra auth** (no connection string)
 - [ ] Spike B: Python notebook can import the `divvy_rti` wheel (environment or `%pip` from `lh_bronze/Files`)
 - [ ] Spike C: Direct Lake model over a lakehouse **shortcut** to medallion `fact_trips`
