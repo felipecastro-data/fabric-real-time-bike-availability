@@ -1,6 +1,6 @@
 # Project plan & progress
 
-**Progress: Step 1 in progress — 0 of 8 steps done (Step 1 ≈ 55 %)**
+**Progress: Step 1 in progress — 0 of 8 steps done (Step 1 ≈ 70 %)**
 
 Fabric Real-Time Bike Availability: a streaming + CDC/SCD2 platform on the Divvy domain. Operations see which
 Chicago stations are about to run empty or full, minutes ahead; analysts get station history (renames, capacity
@@ -135,7 +135,13 @@ pause by **2026-12-08**, buffer to trial end.
 - [x] `ci` workflow: ruff · pytest · Fabric item validator · wheel check · actionlint → single `ci` gate (green locally and on GitHub)
 - [x] HCP Terraform workspace `fabric-rti-platform` (execution mode Local, `ws-A8VwDZqVFHCmHy2M`, same project as `fabric-medallion-platform`)
 - [x] Spike workspace `divvy-rti-spike` (`4763d7f6-5e33-4995-8dfe-8671ea567351`, trial FTL64, West US) — **delete after Step 1**
-- [ ] Spike A: Python notebook sends a batch to an Eventstream custom endpoint with **Entra auth** (no connection string)
+- [x] Spike A: Python notebook sends a batch to an Eventstream custom endpoint with **Entra auth** (no connection string)
+      ✅ 2026-11-12. `notebookutils.credentials.getToken("https://eventhubs.azure.net")` wrapped as an `azure-core`
+      `TokenCredential` → `EventHubProducerClient(fully_qualified_namespace, eventhub_name, cred)`; 3/3 events read back
+      (Mac with `AzureCliCredential` also 3/3). Namespace + hub come from the REST API
+      `GET …/eventstreams/{id}/sources/{sourceId}/connection` (no keys needed). `azure-eventhub` is not preinstalled
+      in the Python notebook (`%pip` or the wheel, see Spike B). Open: the run was as the user; scheduled prod runs
+      run as the schedule owner → that identity needs workspace Contributor (check in Step 3).
 - [ ] Spike B: Python notebook can import the `divvy_rti` wheel (environment or `%pip` from `lh_bronze/Files`)
 - [ ] Spike C: Direct Lake model over a lakehouse **shortcut** to medallion `fact_trips`
 
