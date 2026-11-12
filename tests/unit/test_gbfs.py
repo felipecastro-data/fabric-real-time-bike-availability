@@ -15,6 +15,7 @@ from divvy_rti.gbfs import (
     discover_feeds,
     get_with_retry,
     parse_station_status,
+    station_information_rows,
     urllib_fetch,
 )
 
@@ -153,3 +154,19 @@ def test_urllib_fetch_returns_304_on_matching_etag():
         server.shutdown()
     assert (first.status, first.body, first.etag) == (200, {"last_updated": 1}, '"abc"')
     assert (second.status, second.body) == (304, None)
+
+
+def test_station_information_rows():
+    fetched_at = datetime(2026, 11, 12, 18, tzinfo=UTC)
+    snapshot_date, rows = station_information_rows(load("station_information.json"), fetched_at)
+    assert snapshot_date == "2026-11-12" and len(rows) == 20
+    classic, light = rows[0], rows[-1]
+    assert (classic["short_name"], classic["capacity"]) == ("CHI02390", 6)
+    assert light["short_name"] is None and light["address"]
+    assert json.loads(classic["raw"])["station_id"] == classic["station_id"]
+    assert {r["snapshot_date"] for r in rows} == {"2026-11-12"} and classic["fetched_at"] == fetched_at
+
+
+def test_snapshot_date_is_the_chicago_date():
+    payload = {"last_updated": 1794538800, "data": {"stations": []}}  # 2026-11-13 03:00 UTC = 2026-11-12 21:00 CST
+    assert station_information_rows(payload, datetime.now(UTC))[0] == "2026-11-12"

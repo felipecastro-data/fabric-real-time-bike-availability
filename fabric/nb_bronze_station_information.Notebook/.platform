@@ -1,0 +1,12 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/gitIntegration/platformProperties/2.0.0/schema.json",
+  "metadata": {
+    "type": "Notebook",
+    "displayName": "nb_bronze_station_information",
+    "description": "Daily GBFS station_information snapshot into lh_bronze dbo.station_information (replace per snapshot_date)"
+  },
+  "config": {
+    "version": "2.0",
+    "logicalId": "7d431533-37ec-4611-bfb8-cf3c2fb42b47"
+  }
+}

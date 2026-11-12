@@ -1,0 +1,12 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/gitIntegration/platformProperties/2.0.0/schema.json",
+  "metadata": {
+    "type": "Notebook",
+    "displayName": "nb_gbfs_poller",
+    "description": "Polls GBFS station_status every 60 s for ~55 min and sends events to es_station_status"
+  },
+  "config": {
+    "version": "2.0",
+    "logicalId": "035d075f-bf9c-4c58-90cd-3898d0087d3d"
+  }
+}
