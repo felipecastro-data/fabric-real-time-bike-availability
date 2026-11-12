@@ -159,9 +159,11 @@ pause by **2026-12-08**, buffer to trial end.
 - [x] `fabric_shortcut` from `lh_gold` to `divvy-medallion-<env>` `fact_trips` and `dim_date` (medallion IDs looked up by name, not hard-coded)
 - [x] Deployment pipeline Development → Test → Production (in code); repo variables `AZURE_*`, `FABRIC_CAPACITY_ID`,
       `FABRIC_ADMIN_USER_OBJECT_ID`, `FABRIC_SP_OBJECT_ID`; environments dev/test (main only) and prod/platform (approval)
-- [ ] Workspace/pipeline ID repo variables after the first apply
-- [ ] `terraform` workflow: fmt · validate · tflint · plan comment · approval-gated apply; 0 drift after apply
-      (local plan 2026-11-12: 35 to add, 0 change, 0 destroy; apply runs in CI so the service principal owns the items)
+- [x] Workspace/pipeline ID repo variables after the first apply (`FABRIC_WORKSPACE_ID_DEV/TEST/PROD`, `FABRIC_DEPLOYMENT_PIPELINE_ID`)
+- [x] `terraform` workflow: fmt · validate · tflint · plan comment · approval-gated apply — first apply 2026-11-12:
+      35 added as the service principal; all items + shortcuts verified in dev/test/prod
+- [ ] 0 drift after apply — **blocked**: `divvy-rti-test/es_station_status` (`b40894fe-…`) is Active in the admin API
+      but returns `Unauthorized` to the human admin (dev/prod fine), so a local plan fails reading it
 - [ ] Delete the temporary `divvy-rti-spike` workspace (ask first)
 
 ### Step 3 — Ingestion

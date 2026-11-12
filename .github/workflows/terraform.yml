@@ -13,6 +13,11 @@ on:
       - "infra/terraform/**"
       - ".github/workflows/terraform.yml"
   workflow_dispatch:
+    inputs:
+      replace:
+        description: 'Optional resource address to recreate, e.g. module.workspace["test"].fabric_eventstream.this'
+        required: false
+        default: ""
 
 permissions:
   id-token: write # GitHub OIDC -> Entra service principal (no stored cloud secrets)
@@ -118,7 +123,19 @@ jobs:
           terraform_wrapper: false
       - run: terraform init
       - name: terraform plan
-        run: terraform plan -no-color -lock-timeout=5m -out=tfplan
+        env:
+          REPLACE: ${{ inputs.replace }} # via env, never interpolated into the script
+        run: |
+          args=()
+          address_pattern='^[][A-Za-z0-9_."-]+$' # resource address characters only
+          if [ -n "$REPLACE" ]; then
+            if [[ ! "$REPLACE" =~ $address_pattern ]]; then
+              echo "::error::Invalid resource address: $REPLACE"
+              exit 1
+            fi
+            args+=("-replace=$REPLACE")
+          fi
+          terraform plan -no-color -lock-timeout=5m -out=tfplan "${args[@]}"
       - name: terraform apply
         run: terraform apply -no-color -lock-timeout=5m tfplan
       - name: Outputs
