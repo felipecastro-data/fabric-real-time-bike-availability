@@ -1,0 +1,43 @@
+# OS / editors
+.DS_Store
+.vscode/
+.idea/
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Local Spark artifacts
+spark-warehouse/
+metastore_db/
+derby.log
+
+# Terraform (lock file IS committed)
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
+
+# Secrets / local data
+.env
+*.pem
+data/
+
+# Local Terraform variable values (CI uses TF_VAR_* from GitHub variables)
+local.auto.tfvars

@@ -1,0 +1,36 @@
+[project]
+name = "divvy-rti"
+version = "0.1.0"
+description = "GBFS client, streaming transforms, SCD2 and data-quality rules for the Divvy real-time platform on Microsoft Fabric"
+license = "MIT"
+requires-python = ">=3.11,<3.12"  # matches Fabric Runtime 1.3 (Spark 3.5, Python 3.11)
+dependencies = []                  # pyspark is provided by the Fabric runtime
+
+[dependency-groups]
+dev = [
+    "pyspark==3.5.5",
+    "delta-spark==3.2.1",
+    "pytest>=8",
+    "chispa>=0.10",
+    "ruff>=0.6",
+]
+
+[build-system]
+requires = ["hatchling==1.32.4"]  # pinned: reproducible wheel bytes
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/divvy_rti"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src", "tools"]
+addopts = "-ra"
+
+[tool.ruff]
+line-length = 120
+extend-exclude = ["fabric"]  # Fabric notebook sources (cell markers, injected globals)
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM"]
