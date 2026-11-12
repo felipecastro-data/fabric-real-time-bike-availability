@@ -1,6 +1,6 @@
 # Project plan & progress
 
-**Progress: Step 1 in progress — 0 of 8 steps done (Step 1 ≈ 70 %)**
+**Progress: Step 1 in progress — 0 of 8 steps done (Step 1 ≈ 85 %)**
 
 Fabric Real-Time Bike Availability: a streaming + CDC/SCD2 platform on the Divvy domain. Operations see which
 Chicago stations are about to run empty or full, minutes ahead; analysts get station history (renames, capacity
@@ -142,7 +142,11 @@ pause by **2026-12-08**, buffer to trial end.
       `GET …/eventstreams/{id}/sources/{sourceId}/connection` (no keys needed). `azure-eventhub` is not preinstalled
       in the Python notebook (`%pip` or the wheel, see Spike B). Open: the run was as the user; scheduled prod runs
       run as the schedule owner → that identity needs workspace Contributor (check in Step 3).
-- [ ] Spike B: Python notebook can import the `divvy_rti` wheel (environment or `%pip` from `lh_bronze/Files`)
+- [x] Spike B: Python notebook can import the `divvy_rti` wheel (environment or `%pip` from `lh_bronze/Files`)
+      ✅ 2026-11-12 with `%pip install /lakehouse/default/Files/wheels/<wheel>` (default lakehouse attached), run
+      through the job API: `divvy_rti 0.1.0` imported from site-packages, Python 3.11.15. Upload = OneLake DFS
+      create (needs `Content-Length: 0`) → append → flush. Environment route not tested (not needed). Job
+      `failureReason` is generic ("statement execution failures") → spikes/smoke runs write results to `Files/`.
 - [ ] Spike C: Direct Lake model over a lakehouse **shortcut** to medallion `fact_trips`
 
 ### Step 2 — Terraform
