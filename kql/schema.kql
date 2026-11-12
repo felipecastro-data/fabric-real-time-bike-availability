@@ -1,0 +1,72 @@
+// kqldb_bikes schema. Idempotent: applied to every stage with `tools/fabric_ops.py kql <ws> kqldb_bikes kql/schema.kql`
+// (`.execute database script`). Terraform owns the database; this script owns everything inside it.
+// Commands are separated by blank lines; never put a blank line inside a command.
+//
+// station_status_raw  <- Eventstream es_station_status (one row per station per poll, the poller's JSON envelope)
+// station_status      <- update policy EnrichStationStatus(): fill rate, empty/full/offline/stale flags, ingested_at.
+//                        Non-transactional: Fabric tables use streaming ingestion, where a transactional policy cannot
+//                        call ingestion_time(); if enrichment fails, the raw row is still kept.
+// station_status_dedup  materialized view: one row per (station_id, last_reported)
+// station_latest        materialized view: latest observation per station
+// latency_by_hop(), throughput(): latency per hop (p50/p95) and events/s
+.create-merge table station_status_raw (poll_id: string, polled_at: datetime, feed_last_updated: datetime, station_id: string, num_bikes_available: int, num_docks_available: int, num_ebikes_available: int, num_bikes_disabled: int, num_docks_disabled: int, is_installed: bool, is_renting: bool, is_returning: bool, last_reported: datetime, schema_version: int)
+
+.create-merge table station_status (poll_id: string, polled_at: datetime, feed_last_updated: datetime, station_id: string, num_bikes_available: int, num_docks_available: int, num_ebikes_available: int, num_bikes_disabled: int, num_docks_disabled: int, is_installed: bool, is_renting: bool, is_returning: bool, last_reported: datetime, schema_version: int, ingested_at: datetime, fill_rate: real, is_empty: bool, is_full: bool, is_offline: bool, report_age_s: long, is_stale: bool)
+
+.create-or-alter function with (folder = "update_policies", docstring = "station_status_raw -> station_status: fill rate (bikes / (bikes + free docks)), flags, ingestion time") EnrichStationStatus() {
+    station_status_raw
+    | extend ingested_at = ingestion_time()
+    | extend usable = num_bikes_available + num_docks_available
+    | extend fill_rate = iff(usable > 0, todouble(num_bikes_available) / usable, real(null))
+    | extend is_empty = num_bikes_available == 0, is_full = num_docks_available == 0
+    | extend is_offline = not(is_installed) or not(is_renting)
+    | extend report_age_s = datetime_diff("second", polled_at, last_reported)
+    | extend is_stale = report_age_s > 3600
+    | project poll_id, polled_at, feed_last_updated, station_id, num_bikes_available, num_docks_available, num_ebikes_available, num_bikes_disabled, num_docks_disabled, is_installed, is_renting, is_returning, last_reported, schema_version, ingested_at, fill_rate, is_empty, is_full, is_offline, report_age_s, is_stale
+}
+
+.alter table station_status policy update @'[{"IsEnabled": true, "Source": "station_status_raw", "Query": "EnrichStationStatus()", "IsTransactional": false, "PropagateIngestionProperties": true}]'
+
+.create-or-alter materialized-view with (docString = "One row per (station_id, last_reported): the poller resends an unchanged station every poll") station_status_dedup on table station_status {
+    station_status
+    | summarize take_any(*) by station_id, last_reported
+}
+
+.create-or-alter materialized-view with (docString = "Latest observation per station") station_latest on table station_status {
+    station_status
+    | summarize arg_max(polled_at, *) by station_id
+}
+
+.alter-merge table station_status_raw policy retention softdelete = 30d recoverability = disabled
+
+.alter-merge table station_status policy retention softdelete = 30d recoverability = disabled
+
+.alter-merge materialized-view station_status_dedup policy retention softdelete = 30d
+
+.alter-merge materialized-view station_latest policy retention softdelete = 30d
+
+.alter table station_status_raw policy caching hot = 7d
+
+.alter table station_status policy caching hot = 7d
+
+.alter materialized-view station_status_dedup policy caching hot = 7d
+
+.alter materialized-view station_latest policy caching hot = 7d
+
+.create-or-alter function with (folder = "monitoring", docstring = "Latency per hop over a lookback, in seconds: station report -> feed publish -> poll -> Eventhouse ingestion") latency_by_hop(lookback: timespan = 1h) {
+    station_status
+    | where ingested_at > ago(lookback)
+    | extend station_to_feed_s = datetime_diff("millisecond", feed_last_updated, last_reported) / 1000.0
+    | extend feed_to_poll_s = datetime_diff("millisecond", polled_at, feed_last_updated) / 1000.0
+    | extend poll_to_ingest_s = datetime_diff("millisecond", ingested_at, polled_at) / 1000.0
+    | summarize events = count(), polls = dcount(poll_id), stations = dcount(station_id), p50_station_to_feed_s = percentile(station_to_feed_s, 50), p95_station_to_feed_s = percentile(station_to_feed_s, 95), p50_feed_to_poll_s = percentile(feed_to_poll_s, 50), p95_feed_to_poll_s = percentile(feed_to_poll_s, 95), p50_poll_to_ingest_s = percentile(poll_to_ingest_s, 50), p95_poll_to_ingest_s = percentile(poll_to_ingest_s, 95)
+    | extend events_per_s = events / (lookback / 1s)
+}
+
+.create-or-alter function with (folder = "monitoring", docstring = "Events per second, per minute of ingestion") throughput(lookback: timespan = 1h) {
+    station_status
+    | where ingested_at > ago(lookback)
+    | summarize events = count(), polls = dcount(poll_id) by minute = bin(ingested_at, 1m)
+    | extend events_per_s = events / 60.0
+    | order by minute asc
+}

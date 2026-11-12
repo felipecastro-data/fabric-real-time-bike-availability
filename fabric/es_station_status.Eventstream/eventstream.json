@@ -7,7 +7,53 @@
       "properties": {}
     }
   ],
-  "destinations": [],
+  "destinations": [
+    {
+      "name": "dst_eventhouse_raw",
+      "type": "Eventhouse",
+      "properties": {
+        "dataIngestionMode": "ProcessedIngestion",
+        "workspaceId": "{{workspace}}",
+        "itemId": "{{KQLDatabase:kqldb_bikes}}",
+        "databaseName": "kqldb_bikes",
+        "tableName": "station_status_raw",
+        "inputSerialization": {
+          "type": "Json",
+          "properties": {
+            "encoding": "UTF8"
+          }
+        }
+      },
+      "inputNodes": [
+        {
+          "name": "es_station_status-stream"
+        }
+      ]
+    },
+    {
+      "name": "dst_lakehouse_events",
+      "type": "Lakehouse",
+      "properties": {
+        "workspaceId": "{{workspace}}",
+        "itemId": "{{Lakehouse:lh_bronze}}",
+        "schema": "dbo",
+        "deltaTable": "station_status_events",
+        "minimumRows": 100000,
+        "maximumDurationInSeconds": 120,
+        "inputSerialization": {
+          "type": "Json",
+          "properties": {
+            "encoding": "UTF8"
+          }
+        }
+      },
+      "inputNodes": [
+        {
+          "name": "es_station_status-stream"
+        }
+      ]
+    }
+  ],
   "streams": [
     {
       "id": "55835865-80f6-41dc-9380-645dc9ec7a8b",

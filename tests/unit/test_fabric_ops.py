@@ -35,3 +35,23 @@ def test_push_item_creates_then_updates(tmp_path, monkeypatch):
     existing["value"] = [{"id": "other", "displayName": "nb_y"}, {"id": "id1", "displayName": "nb_x"}]
     assert fabric_ops.push_item("ws", item) == "updated"
     assert calls[-1] == ("POST", "/workspaces/ws/items/id1/updateDefinition")
+
+
+def test_script_failures_lists_only_incomplete_commands():
+    results = [
+        {"CommandText": ".create-merge table t (a: int)", "Result": "Completed", "Reason": ""},
+        {"CommandText": ".alter table t policy update @'[...]'", "Result": "Failed", "Reason": "Schema mismatch"},
+        {"CommandText": ".alter table t policy caching hot = 7d", "Result": "Skipped", "Reason": ""},
+    ]
+    failures = fabric_ops.script_failures(results)
+    assert len(failures) == 2 and "Schema mismatch" in failures[0]
+
+
+def test_fill_placeholders_resolves_by_type_and_name():
+    ids = {("KQLDatabase", "kqldb_bikes"): "db-1", ("Lakehouse", "lh_bronze"): "lh-1"}
+    text = (
+        '{"workspaceId": "{{workspace}}", "a": "{{KQLDatabase:kqldb_bikes}}", '
+        '"b": "{{Lakehouse:lh_bronze}}", "c": "{x}"}'
+    )
+    filled = fabric_ops.fill_placeholders(text, "ws-1", lambda t, n: ids[(t, n)])
+    assert json.loads(filled) == {"workspaceId": "ws-1", "a": "db-1", "b": "lh-1", "c": "{x}"}
