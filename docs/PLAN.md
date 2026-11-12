@@ -1,6 +1,6 @@
 # Project plan & progress
 
-**Progress: Step 2 done — 2 of 8 steps**
+**Progress: Step 3 done — 3 of 8 steps**
 
 Fabric Real-Time Bike Availability: a streaming + CDC/SCD2 platform on the Divvy domain. Operations see which
 Chicago stations are about to run empty or full, minutes ahead; analysts get station history (renames, capacity
@@ -185,9 +185,10 @@ pause by **2026-12-08**, buffer to trial end.
 - [x] Hourly `fabric_item_job_scheduler` (prod only) + daily `nb_bronze_station_information` schedule, both gated by
       `prod_poller_schedule_enabled` (default false: the notebooks reach prod through the deployment pipeline) and
       limited to `prod_poller_window` 2026-11-28 → 12-05.
-- [ ] **Service-principal run**: after merge, run the `fabric-run` workflow (dev, `nb_gbfs_poller`) → checks that
-      `notebookutils.credentials.getToken` works for Event Hubs and the Fabric API when the job runs as the service principal
-- [ ] Delete the probe notebook `nb_probe_tmp` in `divvy-rti-dev` (created while debugging the item-list lag)
+- [x] **Service-principal run** 2026-11-12: `fabric-run` from `main` (dev, `nb_gbfs_poller`, 3 min) → 3 polls, 6,237
+      events sent, 0 failures. `notebookutils.credentials.getToken` works for Event Hubs and the Fabric API when the job
+      runs as the service principal (its run record has an empty `user`). Queue time before start: ~3 min.
+- [x] Delete the probe notebook `nb_probe_tmp` in `divvy-rti-dev` (2026-11-12)
 - [x] `nb_bronze_station_information`: daily snapshot, idempotent replace per `snapshot_date` (Chicago date), delta-rs,
       `dbo.station_information` + raw JSON. Dev 2026-11-12: two runs → 2,079 rows (not 4,158).
 - [x] Wheel delivery: `tools/fabric_ops.py upload-wheel` → `lh_bronze/Files/wheels/`; notebooks `pip install` it at start
