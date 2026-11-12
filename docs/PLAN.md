@@ -1,6 +1,6 @@
 # Project plan & progress
 
-**Progress: Step 1 in progress — 0 of 8 steps done (Step 1 ≈ 30 %)**
+**Progress: Step 1 in progress — 0 of 8 steps done (Step 1 ≈ 35 %)**
 
 Fabric Real-Time Bike Availability: a streaming + CDC/SCD2 platform on the Divvy domain. Operations see which
 Chicago stations are about to run empty or full, minutes ahead; analysts get station history (renames, capacity
@@ -114,18 +114,18 @@ Target dates (trial ends ~2026-12-12): steps 1–7 by **2026-11-27**, prod run *
 pause by **2026-12-08**, buffer to trial end.
 
 ### Before Step 1 — manual, do first (you)
-- [ ] **Add GitHub OIDC federated credentials** to the Entra app `sp-fabric-medallion-cicd`:
+- [x] **Add GitHub OIDC federated credentials** to the Entra app `sp-fabric-medallion-cicd`:
       Entra admin center → App registrations → `sp-fabric-medallion-cicd` → Certificates & secrets →
       Federated credentials → Add credential → scenario **Other issuer** (not the GitHub template: this repo
       uses GitHub's *immutable* subject format, checked 2026-11-12), issuer `https://token.actions.githubusercontent.com`,
       audience `api://AzureADTokenExchange`. One credential per subject, prefix
       `repo:felipecastro-data@119976568/fabric-real-time-bike-availability@1454745081:` +
-  - [ ] `ref:refs/heads/main`
-  - [ ] `pull_request`
-  - [ ] `environment:dev`
-  - [ ] `environment:test`
-  - [ ] `environment:prod`
-  - [ ] `environment:platform` (Terraform apply, as in the medallion repo)
+  - [x] `ref:refs/heads/main`
+  - [x] `pull_request`
+  - [x] `environment:dev`
+  - [x] `environment:test`
+  - [x] `environment:prod`
+  - [x] `environment:platform` (Terraform apply, as in the medallion repo)
 
   These mirror the credentials already on the app for `fabric-medallion-cicd-terraform`.
 
