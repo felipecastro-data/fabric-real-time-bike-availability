@@ -1,6 +1,6 @@
 # Project plan & progress
 
-**Progress: Step 3 done — 3 of 8 steps**
+**Progress: Step 4 done — 4 of 8 steps**
 
 Fabric Real-Time Bike Availability: a streaming + CDC/SCD2 platform on the Divvy domain. Operations see which
 Chicago stations are about to run empty or full, minutes ahead; analysts get station history (renames, capacity
@@ -198,9 +198,22 @@ pause by **2026-12-08**, buffer to trial end.
 - [x] Tests on recorded fixtures (20 stations: 10 classic, 10 lightweight): parsing, unchanged-feed skip, retry, malformed station, real 304 path
 
 ### Step 4 — Hot path
-- [ ] Eventstream: (source done in Step 3) → Eventhouse `station_status_raw` + Lakehouse `station_status_events`
-- [ ] KQL schema script in Git: raw table, update policy (fill rate, flags), MVs `station_status_dedup`, `station_latest`, retention 30 d / cache 7 d
-- [ ] Latency functions: `last_reported → polled_at → ingestion_time()`, p50/p95 per hop, events/s
+- [x] Eventstream: (source done in Step 3) → Eventhouse `station_status_raw` (ProcessedIngestion) + Lakehouse
+      `dbo.station_status_events` (flush ≤ 120 s). Destination IDs are placeholders (`{{workspace}}`,
+      `{{KQLDatabase:kqldb_bikes}}`, `{{Lakehouse:lh_bronze}}`) that `fabric_ops.py push` resolves by name in the
+      target workspace: Fabric rejects cross-workspace and all-zeros IDs. Dev 2026-11-12 (3-min poller run, 3 polls):
+      6,237 rows in `station_status_raw` and 6,237 in the Lakehouse (3 commits, no duplicate poll × station), which landed with the event fields plus `EventProcessedUtcTime`,
+      `PartitionId`, `EventEnqueuedUtcTime` (timestamps stay ISO strings in Bronze; Silver casts them).
+- [x] KQL schema script `kql/schema.kql` (idempotent, applied with `fabric_ops.py kql`; not a Git `KQLDatabase` item,
+      whose definition embeds the stage-specific `parentEventhouseItemId`): raw table, **non-transactional** update
+      policy (fill rate, empty/full/offline/stale flags; streaming ingestion can't run a transactional policy that calls
+      `ingestion_time()`), MVs `station_status_dedup` (`station_id, last_reported`) and `station_latest`, retention
+      30 d / cache 7 d. Dev: enriched 6,237 = raw; dedup 3,569 (idle stations repeat); `station_latest` 2,079.
+- [x] Latency functions `latency_by_hop()` / `throughput()`. Dev 2026-11-12 (3 polls, indicative only):
+      poll → ingest p50 **1.4 s** / p95 **7.5 s**; feed → poll ~85 s; station → feed p50 127 s (p95 is months: idle
+      stations, flagged `is_stale`); peak 69 events/s per minute. Prod 7-day numbers come in Step 8.
+- [ ] **Step 8 follow-up:** placeholders don't survive Git sync / deployment pipeline → deploy the Eventstream with
+      `fabric_ops.py push` per stage, and run `kql/schema.kql` per stage from CI as the SP (Kusto scope untested for the SP)
 
 ### Step 5 — Warm path
 - [ ] `silver/availability.py`: watermark 10 min, dedup within watermark, validation rules → dead-letter with reason codes
