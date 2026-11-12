@@ -1,0 +1,125 @@
+name: terraform
+
+# PR   -> fmt, validate, tflint, plan (posted as a PR comment)
+# main -> plan + apply, gated by the `platform` environment (manual approval)
+on:
+  pull_request:
+    paths:
+      - "infra/terraform/**"
+      - ".github/workflows/terraform.yml"
+  push:
+    branches: [main]
+    paths:
+      - "infra/terraform/**"
+      - ".github/workflows/terraform.yml"
+  workflow_dispatch:
+
+permissions:
+  id-token: write # GitHub OIDC -> Entra service principal (no stored cloud secrets)
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: terraform-platform
+  cancel-in-progress: false
+
+env:
+  TF_IN_AUTOMATION: "true"
+  TF_INPUT: "false"
+  TF_TOKEN_app_terraform_io: ${{ secrets.TF_API_TOKEN }}
+  FABRIC_USE_OIDC: "true"
+  FABRIC_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+  FABRIC_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+  TF_VAR_capacity_id: ${{ vars.FABRIC_CAPACITY_ID }}
+  TF_VAR_admin_user_object_id: ${{ vars.FABRIC_ADMIN_USER_OBJECT_ID }}
+
+defaults:
+  run:
+    working-directory: infra/terraform
+
+jobs:
+  validate:
+    name: fmt · validate · tflint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: "~1.16"
+      - uses: terraform-linters/setup-tflint@v6
+      - name: terraform fmt
+        run: terraform fmt -check -recursive -diff
+      - name: terraform init
+        run: terraform init
+      - name: terraform validate
+        run: terraform validate
+      - name: tflint
+        run: |
+          tflint --init
+          tflint --recursive --format compact
+
+  plan:
+    name: plan
+    if: github.event_name == 'pull_request'
+    needs: validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: "~1.16"
+          terraform_wrapper: false
+      - run: terraform init
+      - name: terraform plan
+        id: plan
+        run: |
+          set -o pipefail
+          terraform plan -no-color -lock-timeout=5m | tee plan.txt
+      - name: Comment plan on PR
+        if: always() && steps.plan.outcome != 'skipped'
+        uses: actions/github-script@v9
+        env:
+          PLAN_OUTCOME: ${{ steps.plan.outcome }}
+        with:
+          script: |
+            const fs = require('fs');
+            let plan = fs.readFileSync('infra/terraform/plan.txt', 'utf8');
+            const summary = (plan.match(/^(Plan:.*|No changes\..*)$/m) || ['(see log)'])[0];
+            if (plan.length > 60000) plan = '...(truncated)...\n' + plan.slice(-60000);
+            const marker = '<!-- terraform-plan -->';
+            const body = `${marker}
+            ### Terraform plan — \`${process.env.PLAN_OUTCOME}\`
+            **${summary}**
+            <details><summary>Show plan</summary>
+
+            \`\`\`terraform
+            ${plan}
+            \`\`\`
+            </details>`;
+            const { data: comments } = await github.rest.issues.listComments({ ...context.repo, issue_number: context.issue.number });
+            const existing = comments.find(c => c.body.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({ ...context.repo, comment_id: existing.id, body });
+            } else {
+              await github.rest.issues.createComment({ ...context.repo, issue_number: context.issue.number, body });
+            }
+
+  apply:
+    name: apply
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    needs: validate
+    runs-on: ubuntu-latest
+    environment: platform # requires manual approval
+    steps:
+      - uses: actions/checkout@v7
+      - uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: "~1.16"
+          terraform_wrapper: false
+      - run: terraform init
+      - name: terraform plan
+        run: terraform plan -no-color -lock-timeout=5m -out=tfplan
+      - name: terraform apply
+        run: terraform apply -no-color -lock-timeout=5m tfplan
+      - name: Outputs
+        run: terraform output -no-color
