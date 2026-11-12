@@ -1,6 +1,6 @@
 # Project plan & progress
 
-**Progress: Step 2 done (spike workspace delete pending) — 2 of 8 steps**
+**Progress: Step 2 done — 2 of 8 steps**
 
 Fabric Real-Time Bike Availability: a streaming + CDC/SCD2 platform on the Divvy domain. Operations see which
 Chicago stations are about to run empty or full, minutes ahead; analysts get station history (renames, capacity
@@ -166,7 +166,7 @@ pause by **2026-12-08**, buffer to trial end.
       Quirk: the first `divvy-rti-test/es_station_status` was Active and readable by the service principal but
       `Unauthorized` and unlisted for the human Admin. Fixed by recreating it from CI: run `terraform` manually with
       `replace = module.workspace["test"].fabric_eventstream.this` (new id `609a37cc-…`).
-- [ ] Delete the temporary `divvy-rti-spike` workspace (ask first)
+- [x] Delete the temporary `divvy-rti-spike` workspace (2026-11-12)
 
 ### Step 3 — Ingestion
 - [ ] `gbfs.py`: discovery, conditional GET (ETag), skip unchanged `last_updated`, retries with backoff, typed event model
