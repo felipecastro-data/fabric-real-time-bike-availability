@@ -1,6 +1,6 @@
 # Project plan & progress
 
-**Progress: Step 1 done (pending PR merge + spike workspace delete) — 1 of 8 steps**
+**Progress: Step 2 in progress — 1 of 8 steps done (Step 2 ≈ 50 %)**
 
 Fabric Real-Time Bike Availability: a streaming + CDC/SCD2 platform on the Divvy domain. Operations see which
 Chicago stations are about to run empty or full, minutes ahead; analysts get station history (renames, capacity
@@ -155,10 +155,14 @@ pause by **2026-12-08**, buffer to trial end.
       worked) — revisit if the model is refreshed by the CI service principal.
 
 ### Step 2 — Terraform
-- [ ] Module `fabric_rti_stack`: workspace, admin role, `lh_bronze/lh_silver/lh_gold`, `eh_bikes` + `kqldb_bikes`, `es_station_status`, Spark settings
-- [ ] `fabric_shortcut` from `lh_gold` to `divvy-medallion-<env>` `fact_trips` and `dim_date`
-- [ ] Deployment pipeline Development → Test → Production; repo variables for workspace/pipeline IDs
+- [x] Module `fabric_rti_stack`: workspace, admin role, `lh_bronze/lh_silver/lh_gold`, `eh_bikes` + `kqldb_bikes`, `es_station_status`, Spark settings
+- [x] `fabric_shortcut` from `lh_gold` to `divvy-medallion-<env>` `fact_trips` and `dim_date` (medallion IDs looked up by name, not hard-coded)
+- [x] Deployment pipeline Development → Test → Production (in code); repo variables `AZURE_*`, `FABRIC_CAPACITY_ID`,
+      `FABRIC_ADMIN_USER_OBJECT_ID`, `FABRIC_SP_OBJECT_ID`; environments dev/test (main only) and prod/platform (approval)
+- [ ] Workspace/pipeline ID repo variables after the first apply
 - [ ] `terraform` workflow: fmt · validate · tflint · plan comment · approval-gated apply; 0 drift after apply
+      (local plan 2026-11-12: 35 to add, 0 change, 0 destroy; apply runs in CI so the service principal owns the items)
+- [ ] Delete the temporary `divvy-rti-spike` workspace (ask first)
 
 ### Step 3 — Ingestion
 - [ ] `gbfs.py`: discovery, conditional GET (ETag), skip unchanged `last_updated`, retries with backoff, typed event model
