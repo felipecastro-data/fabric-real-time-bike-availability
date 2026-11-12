@@ -169,14 +169,22 @@ pause by **2026-12-08**, buffer to trial end.
 - [x] Delete the temporary `divvy-rti-spike` workspace (2026-11-12)
 
 ### Step 3 — Ingestion
-- [ ] `gbfs.py`: discovery, conditional GET (ETag), skip unchanged `last_updated`, retries with backoff, typed event model
-- [ ] Event envelope: `poll_id`, `polled_at`, `feed_last_updated`, `station_id`, counts, `last_reported`, `schema_version`
+- [x] `gbfs.py`: discovery, conditional GET (ETag), skip unchanged `last_updated`, retries with backoff, typed event model
+      (stdlib only; discovery `https://gbfs.lyft.com/gbfs/2.3/chi/gbfs.json`). Live check 2026-11-12: 2,079 events,
+      0 rejected, second poll `304 Not Modified`.
+- [x] Event envelope: `poll_id`, `polled_at`, `feed_last_updated`, `station_id`, counts, `last_reported`, `schema_version`
+      (timestamps ISO-8601 UTC; optional GBFS counts are `null` when absent; bad stations → `Rejected` with reason code)
+- [x] `es_station_status` custom-endpoint source `src_gbfs_poller` in Git (`fabric/es_station_status.Eventstream`), pulled
+      forward from Step 4 so the poller can be tested end to end. Pushed to **dev** with `updateDefinition` (dev has no
+      Git connection yet). Smoke 2026-11-12 from the Mac (`AzureCliCredential`): one live poll = 2,079 events sent and
+      2,079 read back, no duplicates. **Batch cap 64 KB**: 256 KB and 1 MB batches failed with an AMQP "write operation
+      timed out" (nothing landed); test/prod get the definition through the deployment pipeline.
 - [ ] `nb_gbfs_poller` (loop ~55 min, batched sends, structured logs) + hourly `fabric_item_job_scheduler` (prod only)
 - [ ] `nb_bronze_station_information`: daily snapshot, idempotent replace per `snapshot_date`
-- [ ] Tests on recorded fixtures: parsing, unchanged-feed skip, retry, malformed station
+- [x] Tests on recorded fixtures (20 stations: 10 classic, 10 lightweight): parsing, unchanged-feed skip, retry, malformed station, real 304 path
 
 ### Step 4 — Hot path
-- [ ] Eventstream: custom endpoint → Eventhouse `station_status_raw` + Lakehouse `station_status_events`
+- [ ] Eventstream: (source done in Step 3) → Eventhouse `station_status_raw` + Lakehouse `station_status_events`
 - [ ] KQL schema script in Git: raw table, update policy (fill rate, flags), MVs `station_status_dedup`, `station_latest`, retention 30 d / cache 7 d
 - [ ] Latency functions: `last_reported → polled_at → ingestion_time()`, p50/p95 per hop, events/s
 

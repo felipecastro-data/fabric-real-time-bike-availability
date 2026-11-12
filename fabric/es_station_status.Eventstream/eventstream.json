@@ -1,0 +1,26 @@
+{
+  "sources": [
+    {
+      "id": "09a5d521-2ccf-4335-ad06-50e8fa465587",
+      "name": "src_gbfs_poller",
+      "type": "CustomEndpoint",
+      "properties": {}
+    }
+  ],
+  "destinations": [],
+  "streams": [
+    {
+      "id": "55835865-80f6-41dc-9380-645dc9ec7a8b",
+      "name": "es_station_status-stream",
+      "type": "DefaultStream",
+      "properties": {},
+      "inputNodes": [
+        {
+          "name": "src_gbfs_poller"
+        }
+      ]
+    }
+  ],
+  "operators": [],
+  "compatibilityLevel": "1.1"
+}

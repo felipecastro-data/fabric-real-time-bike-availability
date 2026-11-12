@@ -1,0 +1,12 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/gitIntegration/platformProperties/2.0.0/schema.json",
+  "metadata": {
+    "type": "Eventstream",
+    "displayName": "es_station_status",
+    "description": "Poller custom endpoint -> Eventhouse (hot) + lh_bronze (warm)"
+  },
+  "config": {
+    "version": "2.0",
+    "logicalId": "0e0452ba-7f5c-4289-842b-ff8e420e195c"
+  }
+}
