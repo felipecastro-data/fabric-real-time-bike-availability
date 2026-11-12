@@ -1,6 +1,6 @@
 # Project plan & progress
 
-**Progress: Step 1 in progress — 0 of 8 steps done (Step 1 ≈ 85 %)**
+**Progress: Step 1 done (pending PR merge + spike workspace delete) — 1 of 8 steps**
 
 Fabric Real-Time Bike Availability: a streaming + CDC/SCD2 platform on the Divvy domain. Operations see which
 Chicago stations are about to run empty or full, minutes ahead; analysts get station history (renames, capacity
@@ -101,7 +101,7 @@ definitions (notebooks, KQL schema script, dashboard, semantic model). Same spli
 
 | # | Step | Status |
 |---|------|--------|
-| 1 | Foundations & spikes — repo skeleton, CI, OIDC for this repo, HCP workspace, 3 risk spikes | ⬜ |
+| 1 | Foundations & spikes — repo skeleton, CI, OIDC for this repo, HCP workspace, 3 risk spikes | ✅ |
 | 2 | Terraform — 3 workspaces, lakehouses, Eventhouse + KQL DB, Eventstream, shortcuts, deployment pipeline, TF CI | ⬜ |
 | 3 | Ingestion — GBFS client, poller notebook, daily `station_information` snapshot | ⬜ |
 | 4 | Hot path — Eventstream routing, KQL tables, update policy, MVs, retention | ⬜ |
@@ -147,7 +147,12 @@ pause by **2026-12-08**, buffer to trial end.
       through the job API: `divvy_rti 0.1.0` imported from site-packages, Python 3.11.15. Upload = OneLake DFS
       create (needs `Content-Length: 0`) → append → flush. Environment route not tested (not needed). Job
       `failureReason` is generic ("statement execution failures") → spikes/smoke runs write results to `Files/`.
-- [ ] Spike C: Direct Lake model over a lakehouse **shortcut** to medallion `fact_trips`
+- [x] Spike C: Direct Lake model over a lakehouse **shortcut** to medallion `fact_trips`
+      ✅ 2026-11-12. OneLake shortcut `lh_spike/Tables/fact_trips` → `divvy-medallion-prod/lh_gold/Tables/dbo/fact_trips`
+      (non-schema lakehouse → SQL endpoint schema `dbo`; call `sqlEndpoints/{id}/refreshMetadata` after creating
+      it). TMDL model with `directLakeBehavior: directLakeOnly` (fallback would error) created via REST, framed,
+      DAX `COUNTROWS` = **6,006,901 = source rows** (delta-rs). Not tested: fixed-identity connection (SSO as the user
+      worked) — revisit if the model is refreshed by the CI service principal.
 
 ### Step 2 — Terraform
 - [ ] Module `fabric_rti_stack`: workspace, admin role, `lh_bronze/lh_silver/lh_gold`, `eh_bikes` + `kqldb_bikes`, `es_station_status`, Spark settings
