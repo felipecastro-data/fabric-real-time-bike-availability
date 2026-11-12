@@ -1,6 +1,6 @@
 # Project plan & progress
 
-**Progress: Step 1 in progress — 0 of 8 steps done (Step 1 ≈ 35 %)**
+**Progress: Step 1 in progress — 0 of 8 steps done (Step 1 ≈ 45 %)**
 
 Fabric Real-Time Bike Availability: a streaming + CDC/SCD2 platform on the Divvy domain. Operations see which
 Chicago stations are about to run empty or full, minutes ahead; analysts get station history (renames, capacity
@@ -130,9 +130,9 @@ pause by **2026-12-08**, buffer to trial end.
   These mirror the credentials already on the app for `fabric-medallion-cicd-terraform`.
 
 ### Step 1 — Foundations & spikes
-- [ ] `git init` ✅ (local commit), push skeleton to `felipecastro-data/fabric-real-time-bike-availability`; ruleset `protect-main` (PR, green `ci`, squash)
+- [x] `git init`, push skeleton to `felipecastro-data/fabric-real-time-bike-availability`; ruleset `protect-main` (PR, green `ci`, squash) — first `ci` run green 2026-11-12
 - [x] `pyproject.toml` (uv, ruff, pytest, chispa, pyspark 3.5.5, delta-spark 3.2.1), `Makefile` (`make check`), devcontainer, `.env.example`, MIT license
-- [x] `ci` workflow: ruff · pytest · Fabric item validator · wheel check · actionlint → single `ci` gate (green locally; first GitHub run after push)
+- [x] `ci` workflow: ruff · pytest · Fabric item validator · wheel check · actionlint → single `ci` gate (green locally and on GitHub)
 - [ ] HCP Terraform workspace `fabric-rti-platform` (execution mode Local)
 - [ ] Spike A: Python notebook sends a batch to an Eventstream custom endpoint with **Entra auth** (no connection string)
 - [ ] Spike B: Python notebook can import the `divvy_rti` wheel (environment or `%pip` from `lh_bronze/Files`)
