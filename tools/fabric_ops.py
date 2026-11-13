@@ -7,6 +7,7 @@ python tools/fabric_ops.py kql <workspace-id> kqldb_bikes kql/schema.kql   # `.e
 python tools/fabric_ops.py refresh-sql <workspace-id> lh_gold                 # SQL endpoint metadata sync
 python tools/fabric_ops.py refresh-model <workspace-id> sm_bike_availability  # Direct Lake framing, wait for result
 python tools/fabric_ops.py monitor <workspace-id>                             # prod run health; exit 1 + problems
+python tools/fabric_ops.py schedule <workspace-id> infra/prod_schedules.json  # notebook schedules = spec (upsert)
 
 `push` is the dev bootstrap until the dev workspace is Git-connected (Step 8); test/prod get items from the
 deployment pipeline. `req`, `wait_lro` and `run` are copied from the medallion repo's tools/fabric_ops.py.
@@ -243,6 +244,28 @@ def refresh_model(ws: str, model: str) -> None:
             raise SystemExit(json.dumps(refresh.get("messages") or refresh["status"]))
 
 
+def apply_schedules(ws: str, spec: Path) -> list[str]:
+    """Make each notebook's RunNotebook schedule match the spec: update the first existing one (extras deleted) or
+    create it. Not Terraform: the provider's `fabric_item_job_scheduler` rejects Notebook items."""
+    actions = []
+    for entry in json.loads(spec.read_text()):
+        item = workspace_item_id(ws, "Notebook", entry["notebook"])
+        base = f"/workspaces/{ws}/items/{item}/jobs/RunNotebook/schedules"
+        body = {"enabled": entry["enabled"], "configuration": entry["configuration"]}
+        existing = [s["id"] for s in req("GET", base)[2]["value"]]
+        for extra in existing[1:]:
+            req("DELETE", f"{base}/{extra}")
+        if existing:
+            req("PATCH", f"{base}/{existing[0]}", body)
+            action = "updated"
+        else:
+            req("POST", base, body)
+            action = "created"
+        print(f"  {action} schedule {entry['notebook']} (enabled={entry['enabled']})")
+        actions.append(f"{action} {entry['notebook']}")
+    return actions
+
+
 HOT_PATH_MAX_AGE_MIN = 15  # poller gap at the hourly reschedule is ~5 min
 WARM_PATH_MAX_GAP_MIN = 90  # Silver stream restarts hourly
 
@@ -285,6 +308,8 @@ if __name__ == "__main__":
         refresh_sql_endpoint(workspace, sys.argv[3])
     elif command == "refresh-model":
         refresh_model(workspace, sys.argv[3])
+    elif command == "schedule":
+        apply_schedules(workspace, Path(sys.argv[3]))
     elif command == "monitor":
         found = monitor(workspace)
         print("\n".join(found) or "healthy")
