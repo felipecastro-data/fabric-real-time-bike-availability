@@ -1,0 +1,12 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/gitIntegration/platformProperties/2.0.0/schema.json",
+  "metadata": {
+    "type": "Notebook",
+    "displayName": "nb_gold_dim_station",
+    "description": "SCD2 dim_station from daily station_information snapshots (hash-diff, feed-dated), then the DQ gate"
+  },
+  "config": {
+    "version": "2.0",
+    "logicalId": "6623b578-1b07-4966-b39e-6478acaa15d1"
+  }
+}

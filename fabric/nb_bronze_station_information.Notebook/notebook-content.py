@@ -58,6 +58,7 @@ def land_snapshot():
     import pyarrow as pa  # imported here so an import failure is captured in the run record
     import pyarrow.dataset as ds
     from deltalake import DeltaTable, write_deltalake
+    from deltalake.exceptions import TableNotFoundError
 
     schema = pa.schema(
         [
@@ -85,22 +86,29 @@ def land_snapshot():
 
     table_uri = f"{bronze}/Tables/dbo/station_information"
     storage_options = {"bearer_token": notebookutils.credentials.getToken("storage"), "use_fabric_endpoint": "true"}
+    # Replace this day only: delete + append. Not `mode="overwrite", predicate=...`: older delta-rs (Fabric's) ignores
+    # the predicate and replaces the whole table (lost the 2026-11-12 dev snapshot on 2026-11-13). A crash between the
+    # two commits leaves the day missing until the rerun, which is idempotent.
+    this_day = ds.field("snapshot_date") == date.fromisoformat(snapshot_date)
+    try:
+        table = DeltaTable(table_uri, storage_options=storage_options)
+    except TableNotFoundError:  # first run
+        other_days = 0
+    else:
+        other_days = table.to_pyarrow_dataset().count_rows(filter=~this_day)
+        table.delete(f"snapshot_date = '{snapshot_date}'")
     write_deltalake(
         table_uri,
         pa.Table.from_pylist(rows, schema=schema),
-        mode="overwrite",
-        predicate=f"snapshot_date = '{snapshot_date}'",  # replace this day only
+        mode="append",
         partition_by=["snapshot_date"],
         storage_options=storage_options,
     )
-    landed = (
-        DeltaTable(table_uri, storage_options=storage_options)
-        .to_pyarrow_dataset()
-        .count_rows(filter=ds.field("snapshot_date") == date.fromisoformat(snapshot_date))
-    )
-    if landed != len(rows):
-        raise RuntimeError(f"snapshot {snapshot_date} has {landed} rows, expected {len(rows)}")
-    return {"snapshot_date": snapshot_date, "stations": len(rows), "rows_in_snapshot": landed}
+    dataset = DeltaTable(table_uri, storage_options=storage_options).to_pyarrow_dataset()
+    landed, kept = dataset.count_rows(filter=this_day), dataset.count_rows(filter=~this_day)
+    if landed != len(rows) or kept != other_days:
+        raise RuntimeError(f"snapshot {snapshot_date}: {landed} rows (expected {len(rows)}), other days {kept} (expected {other_days})")
+    return {"snapshot_date": snapshot_date, "stations": len(rows), "rows_in_snapshot": landed, "rows_other_days": kept}
 
 
 # The job API only reports a generic failure, so every run writes its outcome (and traceback) to Files/runs.
