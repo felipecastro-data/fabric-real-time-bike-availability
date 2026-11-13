@@ -93,9 +93,10 @@ docs/                 PLAN, design.md, adr/, screenshots/, charts/
 Makefile · .devcontainer · .env.example · pyproject.toml (uv, Python 3.11 = Fabric Runtime 1.3)
 ```
 
-Terraform owns containers and schedules (workspaces, roles, lakehouses, Eventhouse, KQL DB, Eventstream shell,
-shortcuts, Spark settings, deployment pipeline, job schedules, Activator). Git + deployment pipeline own code and
-definitions (notebooks, KQL schema script, dashboard, semantic model). Same split as medallion ADR 0001.
+Terraform owns containers (workspaces, roles, lakehouses, Eventhouse, KQL DB, Eventstream shell, shortcuts, Spark
+settings). The `deploy` workflow (`tools/deploy_stage.sh`, REST, as the service principal) owns every item definition,
+the KQL schema script and the prod schedules, in every stage — see [ADR 0006](adr/0006-ownership-terraform-vs-rest-deploy.md)
+for why this differs from medallion ADR 0001.
 
 ## Steps
 
@@ -317,10 +318,12 @@ pause by **2026-12-08**, buffer to trial end.
 - [ ] `MONITOR_PROD=true` on 2026-11-27 (not earlier: prod is idle until the window, so the monitor would open issues)
 - [ ] Prod 24/7 for 7 days (2026-11-28 → 12-05)
 - [ ] Results: events/day raw vs dedup, events/s, latency p50/p95 per hop, dead-letter rate, SCD2 changes caught, CU use
-- [ ] ADRs (below), `docs/design.md` (scalability, cost, governance, security), README with screenshots
+- [x] 7 ADRs in [`docs/adr/`](adr/) and [`docs/design.md`](design.md) (2026-11-13); prod-run figures marked
+      **(7-day run)** in design.md are filled in after 2026-12-05
+- [ ] README with screenshots
 - [ ] Pause: poller schedule off, stream stopped, Eventhouse retention left in place
 
-## ADRs to write
+## ADRs (written 2026-11-13, [`docs/adr/`](adr/))
 
 1. Poller in a Fabric Python notebook vs Azure Function vs Eventstream HTTP source
 2. Dual sink: Eventhouse (hot, KQL) + Delta (warm, Spark) — why both
