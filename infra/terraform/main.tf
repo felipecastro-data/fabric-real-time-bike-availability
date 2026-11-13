@@ -92,6 +92,13 @@ data "fabric_notebook" "prod_silver_availability" {
   display_name = "nb_silver_availability"
 }
 
+data "fabric_notebook" "prod_dim_station" {
+  count = var.prod_poller_schedule_enabled ? 1 : 0
+
+  workspace_id = module.workspace["prod"].workspace_id
+  display_name = "nb_gold_dim_station"
+}
+
 resource "fabric_item_job_scheduler" "prod_poller_hourly" {
   count = var.prod_poller_schedule_enabled ? 1 : 0
 
@@ -138,6 +145,23 @@ resource "fabric_item_job_scheduler" "prod_silver_availability_hourly" {
     type               = "Cron"
     interval           = 60 # each run streams 50 min (1-min trigger), then stops before the next run
     local_time_zone_id = "UTC"
+    start_date_time    = var.prod_poller_window.start
+    end_date_time      = var.prod_poller_window.end
+  }
+}
+
+resource "fabric_item_job_scheduler" "prod_dim_station_daily" {
+  count = var.prod_poller_schedule_enabled ? 1 : 0
+
+  workspace_id = module.workspace["prod"].workspace_id
+  item_id      = data.fabric_notebook.prod_dim_station[0].id
+  job_type     = "RunNotebook"
+  enabled      = true
+
+  configuration = {
+    type               = "Daily"
+    times              = ["06:30"] # after the 06:00 station_information snapshot
+    local_time_zone_id = "Central Standard Time"
     start_date_time    = var.prod_poller_window.start
     end_date_time      = var.prod_poller_window.end
   }

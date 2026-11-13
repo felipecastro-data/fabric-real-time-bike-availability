@@ -5,28 +5,9 @@ import pytest
 pyspark = pytest.importorskip("pyspark")
 delta = pytest.importorskip("delta")
 
-from pyspark.sql import SparkSession  # noqa: E402
-
 from divvy_rti.availability import BRONZE_SCHEMA, Paths, run, validate, write_silver_batch  # noqa: E402
 
 T0 = datetime(2026, 11, 13, 12, 0, tzinfo=UTC)
-
-
-@pytest.fixture(scope="module")
-def spark():
-    builder = (
-        SparkSession.builder.master("local[2]")
-        .appName("test_availability")
-        .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
-        .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog")
-        .config("spark.sql.shuffle.partitions", "2")
-        .config("spark.sql.session.timeZone", "UTC")
-        .config("spark.ui.enabled", "false")
-        .config("spark.ui.showConsoleProgress", "false")
-    )
-    session = delta.configure_spark_with_delta_pip(builder).getOrCreate()
-    yield session
-    session.stop()
 
 
 def iso(moment):

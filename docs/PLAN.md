@@ -1,6 +1,6 @@
 # Project plan & progress
 
-**Progress: Step 5 done — 5 of 8 steps**
+**Progress: Step 6 done — 6 of 8 steps**
 
 Fabric Real-Time Bike Availability: a streaming + CDC/SCD2 platform on the Divvy domain. Operations see which
 Chicago stations are about to run empty or full, minutes ahead; analysts get station history (renames, capacity
@@ -106,7 +106,7 @@ definitions (notebooks, KQL schema script, dashboard, semantic model). Same spli
 | 3 | Ingestion — GBFS client, poller notebook, daily `station_information` snapshot | ✅ |
 | 4 | Hot path — Eventstream routing, KQL tables, update policy, MVs, retention | ✅ |
 | 5 | Warm path — Structured Streaming Silver + dead-letter, Gold 15-min fact | ✅ |
-| 6 | CDC / SCD2 — hash-diff `dim_station`, trips bridge, DQ gate | ⬜ |
+| 6 | CDC / SCD2 — hash-diff `dim_station`, trips bridge, DQ gate | ✅ |
 | 7 | Serving — Real-Time Dashboard, Activator email, Direct Lake model with `fact_trips` | ⬜ |
 | 8 | CD, 7-day prod run, measured results, ADRs, design doc, README, pause | ⬜ |
 
@@ -237,12 +237,27 @@ pause by **2026-12-08**, buffer to trial end.
       window; newer windows wait for the watermark). Run 1 read Bronze before the last poll's commits landed (≤ 120 s
       flush); run 2 resumed from the checkpoint and caught up. Fabric quirk: `createIfNotExists` on an existing OneLake
       path fails with `SCHEMA_NOT_FOUND` → check `isDeltaTable` first.
-- [ ] **Step 8 follow-up:** service-principal run of `nb_silver_availability` (Spark notebook, not tested as the SP yet)
 
 ### Step 6 — CDC / SCD2
-- [ ] `gold/dim_station.py`: hash-diff, type 2 vs type 1 attributes, `removed`, single MERGE; durable `station_key`
-- [ ] Bridge to trips on `short_name`; report coverage (stations and trip share)
-- [ ] DQ gate: SCD2 invariants (unique version key, one current per station, contiguous intervals), dead-letter rate, freshness, Bronze = Silver + dead-letter
+- [x] `divvy_rti/dim_station.py` → `lh_gold` `dbo.dim_station`: hash-diff (SHA-256 of name, short_name, capacity) +
+      relocation > 100 m = type 2; coordinate drift ≤ 100 m, region, address, charging = type 1 (in place); stations
+      missing from a snapshot closed with `end_reason = 'removed'`. One MERGE per snapshot; `valid_from` = GBFS
+      `last_updated`. Pending snapshots applied oldest first; rerun = no-op; an older snapshot landing late is never
+      applied after a newer one. Keys: durable `station_key` = hash(station_id), `station_version_key` = hash(station_id,
+      valid_from). `station_type` is derived (`classic` with a `short_name`, else `lightweight`): the feed has no such field.
+- [x] Bridge: `trips_station_key` = medallion `station_key` formula (`xxhash64(short_name)` masked), so
+      `fact_trips.start_station_key` joins directly (no medallion `dim_station` shortcut). Dev 2026-11-13: **1,178 of
+      2,079** stations have a key; **95.9 %** of Sept 2026 station trips (575,754 / 600,121) start at a current station.
+- [x] `divvy_rti/dq.py` gate (`nb_gold_dim_station`, after the SCD2 load, results in `lh_gold` `dbo.dq_results`): SCD2
+      unique version key, one current per station, contiguous intervals, open end ⇔ current; Bronze = Silver +
+      dead-letter (both directions, rows polled > 60 min ago); dead-letter rate ≤ 1 %; Silver freshness ≤ 30 min (prod).
+      Dev 2026-11-13: all gating checks pass. Prod schedule daily 06:30 Chicago (after the 06:00 snapshot), same gate.
+- [x] **Bug fixed (Step 3):** `nb_bronze_station_information` used `write_deltalake(mode="overwrite", predicate=…)`;
+      Fabric's older delta-rs **ignores the predicate** and replaced the whole table (dev lost the 2026-11-12 snapshot).
+      Now delete-day + append, and the run fails if other days' row count changes. Reproduced locally (0.18.2 overwrites
+      all; 1.1.4 respects the predicate; delete + append correct on both).
+- [ ] **Check 2026-11-14:** next dev snapshot keeps 11-13 (`rows_other_days` = 2,079) and SCD2 applies a real day-2 diff
+- [x] Service-principal run of `nb_silver_availability` from `main` (`fabric-run`, 2026-11-13): succeeded
 
 ### Step 7 — Serving
 - [ ] Real-Time Dashboard `rtd_bike_availability` (in Git)
