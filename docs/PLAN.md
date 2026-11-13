@@ -320,7 +320,8 @@ pause by **2026-12-08**, buffer to trial end.
 - [ ] Results: events/day raw vs dedup, events/s, latency p50/p95 per hop, dead-letter rate, SCD2 changes caught, CU use
 - [x] 7 ADRs in [`docs/adr/`](adr/) and [`docs/design.md`](design.md) (2026-11-13); prod-run figures marked
       **(7-day run)** in design.md are filled in after 2026-12-05
-- [ ] README with screenshots
+- [x] README (2026-11-13): overview, architecture + CD diagrams, gates-caught table, results so far, dev dashboard
+      screenshot. To add after the run: prod results, prod dashboard / Activator email screenshots
 - [ ] Pause: poller schedule off, stream stopped, Eventhouse retention left in place
 
 ## ADRs (written 2026-11-13, [`docs/adr/`](adr/))
