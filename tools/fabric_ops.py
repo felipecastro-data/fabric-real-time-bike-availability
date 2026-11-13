@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import base64
 import json
+import os
 import re
 import subprocess
 import sys
@@ -74,7 +75,12 @@ def fill_placeholders(text: str, ws: str, item_id: Callable[[str, str], str]) ->
 
 def resolve_placeholder(ws: str, item_type: str, name: str) -> str:
     """`{{<Type>:<name>}}` → item ID, plus stage-specific endpoints: `KQLDatabaseUri` (query URI), `SqlEndpoint`
-    (lakehouse SQL endpoint ID) and `SqlConnection` (its server name), used by the dashboard and the semantic model."""
+    (lakehouse SQL endpoint ID) and `SqlConnection` (its server name), used by the dashboard and the semantic model;
+    `Env` reads an environment variable for values kept out of the public repo (the Activator alert recipient)."""
+    if item_type == "Env":
+        if not os.environ.get(name):
+            raise SystemExit(f"environment variable {name} is required by a {{{{Env:{name}}}}} placeholder")
+        return os.environ[name]
     if item_type == "KQLDatabaseUri":
         _, _, items = req("GET", f"/workspaces/{ws}/kqlDatabases")
         return next(i["properties"]["queryServiceUri"] for i in items["value"] if i["displayName"] == name)

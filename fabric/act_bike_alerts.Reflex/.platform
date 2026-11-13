@@ -1,0 +1,12 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/gitIntegration/platformProperties/2.0.0/schema.json",
+  "metadata": {
+    "type": "Reflex",
+    "displayName": "act_bike_alerts",
+    "description": "Email when a station that was >= 30% full an hour ago drops below 10% (source: rtd_bike_availability alert tile)"
+  },
+  "config": {
+    "version": "2.0",
+    "logicalId": "2a4bf263-60f1-4f0e-a2f5-b4113ef232fd"
+  }
+}

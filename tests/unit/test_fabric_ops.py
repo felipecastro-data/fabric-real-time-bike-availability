@@ -2,6 +2,7 @@ import base64
 import json
 
 import fabric_ops
+import pytest
 
 
 def make_item(tmp_path):
@@ -72,3 +73,11 @@ def test_resolve_placeholder_endpoints(monkeypatch):
     assert resolve("ws", "KQLDatabaseUri", "kqldb_bikes") == "https://q"
     assert (resolve("ws", "SqlEndpoint", "lh_gold"), resolve("ws", "SqlConnection", "lh_gold")) == ("sql-1", "srv")
     assert resolve("ws", "Lakehouse", "lh_gold") == "lh-1"
+
+
+def test_resolve_placeholder_env(monkeypatch):
+    monkeypatch.setenv("ALERT_EMAIL", "ops@example.com")
+    assert fabric_ops.resolve_placeholder("ws", "Env", "ALERT_EMAIL") == "ops@example.com"
+    monkeypatch.delenv("ALERT_EMAIL")
+    with pytest.raises(SystemExit, match="ALERT_EMAIL"):
+        fabric_ops.resolve_placeholder("ws", "Env", "ALERT_EMAIL")
