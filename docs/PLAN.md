@@ -1,6 +1,6 @@
 # Project plan & progress
 
-**Progress: Step 6 done — 6 of 8 steps**
+**Progress: Step 7 built (Activator pending) — 6.8 of 8 steps**
 
 Fabric Real-Time Bike Availability: a streaming + CDC/SCD2 platform on the Divvy domain. Operations see which
 Chicago stations are about to run empty or full, minutes ahead; analysts get station history (renames, capacity
@@ -107,7 +107,7 @@ definitions (notebooks, KQL schema script, dashboard, semantic model). Same spli
 | 4 | Hot path — Eventstream routing, KQL tables, update policy, MVs, retention | ✅ |
 | 5 | Warm path — Structured Streaming Silver + dead-letter, Gold 15-min fact | ✅ |
 | 6 | CDC / SCD2 — hash-diff `dim_station`, trips bridge, DQ gate | ✅ |
-| 7 | Serving — Real-Time Dashboard, Activator email, Direct Lake model with `fact_trips` | ⬜ |
+| 7 | Serving — Real-Time Dashboard, Activator email, Direct Lake model with `fact_trips` | 🟨 (Activator: you) |
 | 8 | CD, 7-day prod run, measured results, ADRs, design doc, README, pause | ⬜ |
 
 Target dates (trial ends ~2026-12-12): steps 1–7 by **2026-11-27**, prod run **2026-11-28 → 12-05**, write-up and
@@ -260,9 +260,29 @@ pause by **2026-12-08**, buffer to trial end.
 - [x] Service-principal run of `nb_silver_availability` from `main` (`fabric-run`, 2026-11-13): succeeded
 
 ### Step 7 — Serving
-- [ ] Real-Time Dashboard `rtd_bike_availability` (in Git)
-- [ ] Activator: fill rate < 10 % → email, one alert per station per hour
-- [ ] Direct Lake `sm_bike_availability`: availability fact, SCD2 station (as-of), shortcut `fact_trips`, `dim_date`; measures (minutes empty, starts vs empties)
+- [x] Real-Time Dashboard `rtd_bike_availability` (Git, `RealTimeDashboard.json` schema 52; data source IDs are
+      `{{KQLDatabaseUri:…}}` / `{{KQLDatabase:…}}` placeholders filled per stage by `fabric_ops push`): network cards,
+      near-empty map + list, near-empty vs near-full trend, events/s (gaps = 0), latency per hop, alert candidates.
+      Tiles call KQL functions in `kql/schema.kql` (`network_now`, `near_empty_now`, `near_empty_trend`,
+      `near_empty_candidates`, `station_info`); names and locations come from an **external table over lh_gold
+      `dim_station`** (OneLake, `;impersonate`). Verified rendering in dev 2026-11-13: 2,079 reporting, ~114 near empty
+      (in service, not stale), poll → ingest p50 1.3 s / p95 20 s. Screenshot `docs/screenshots/`.
+- [x] Alert rule (decided 2026-11-13, instead of "every station < 10 %", which would be hundreds of emails a day):
+      **busy stations dropping** = reporting, in-service station whose 15-min average fill rate falls below 10 % after
+      being ≥ 30 % an hour earlier (`near_empty_candidates()`); Activator rule per `station_id`, "becomes < 0.1" → email.
+- [ ] Activator `act_bike_alerts` created in the UI from the dashboard tile (you), then definition exported to Git
+- [x] Direct Lake `sm_bike_availability` (TMDL in Git, SQL endpoint via `{{SqlConnection:lh_gold}}` /
+      `{{SqlEndpoint:lh_gold}}`, `directLakeOnly`): `fact_availability_15min` → `dim_station` on **`station_version_key`
+      (as-of)**, → `dim_date`; `fact_trips` → `dim_date`; trips ↔ stations through `TREATAS` on `trips_station_key`
+      (no relationship: versions aren't unique per trip key). Measures: Observations, Minutes empty/full, Empty share,
+      Avg fill rate, Avg daily trip starts (latest trips month), Starts at risk per day. Dev: framed; all 4,158 Gold
+      rows keyed to a version; DAX returns values.
+- [x] Gold changes for the model: `station_version_key` (as-of join at write time, initial versions also cover the time
+      before the first snapshot) + `date_key` (Chicago); writer is now `foreachBatch` insert-only MERGE (checkpoint `_v2`);
+      `nb_gold_dim_station` re-keys windows written before the day's snapshot was applied (`rekey_facts`, retries on a
+      concurrent stream write). Dev Gold table + old checkpoint deleted and rebuilt from Bronze.
+- [ ] **Step 8:** per stage, CI runs `fabric_ops kql` (functions + external table), pushes the dashboard and model,
+      refreshes the lh_gold SQL endpoint metadata, and frames the model (Power BI refresh API)
 
 ### Step 8 — CD, prod run, showcase
 - [ ] `deploy.yml`: dev (Git sync) → test → prod (approval); bounded smoke run per stage

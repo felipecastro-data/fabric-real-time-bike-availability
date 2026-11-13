@@ -1,0 +1,72 @@
+table fact_trips
+	lineageTag: b990713d-1384-5704-a5ed-7b82cfef9faf
+
+	column ride_id
+		dataType: string
+		lineageTag: 26e82a90-012e-5d6a-810a-5006b1a8bd31
+		summarizeBy: none
+		sourceColumn: ride_id
+
+	column date_key
+		dataType: int64
+		isHidden
+		lineageTag: 1fbcde53-00ae-563d-be0d-f71b5fec3b54
+		summarizeBy: none
+		sourceColumn: date_key
+
+	column start_hour
+		dataType: int64
+		lineageTag: aee53381-c1b5-5049-a961-81bf0491e477
+		summarizeBy: none
+		sourceColumn: start_hour
+
+	column start_station_key
+		dataType: int64
+		isHidden
+		lineageTag: aebfa766-f704-5953-83fa-7bb63dbf8e27
+		summarizeBy: none
+		sourceColumn: start_station_key
+
+	column end_station_key
+		dataType: int64
+		isHidden
+		lineageTag: baba923c-062f-5a20-8721-ae4642773a76
+		summarizeBy: none
+		sourceColumn: end_station_key
+
+	column rideable_type
+		dataType: string
+		lineageTag: 4424c261-3faa-568f-897e-cb2d9c0d557a
+		summarizeBy: none
+		sourceColumn: rideable_type
+
+	column member_type
+		dataType: string
+		lineageTag: 74b1404d-4155-51f1-8c55-c649ea8ecab1
+		summarizeBy: none
+		sourceColumn: member_type
+
+	column started_at
+		dataType: dateTime
+		lineageTag: e3ad234a-ad1f-5a56-a99f-1bcf23bf55e2
+		summarizeBy: none
+		sourceColumn: started_at
+
+	column duration_min
+		dataType: double
+		lineageTag: 7df9f021-0561-596e-881d-a363f5d19961
+		summarizeBy: none
+		sourceColumn: duration_min
+
+	column is_electric
+		dataType: boolean
+		lineageTag: 640b3635-79ad-5481-aa36-74c6159943a0
+		summarizeBy: none
+		sourceColumn: is_electric
+
+	partition fact_trips = entity
+		mode: directLake
+		source
+			entityName: fact_trips
+			schemaName: dbo
+			expressionSource: DatabaseQuery

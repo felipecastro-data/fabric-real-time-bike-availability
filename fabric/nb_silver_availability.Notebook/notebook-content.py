@@ -79,7 +79,8 @@ paths = Paths(
     deadletter=f"{silver}/Tables/dbo/availability_deadletter",
     gold=f"{gold}/Tables/dbo/fact_availability_15min",
     silver_checkpoint=f"{silver}/Files/checkpoints/station_availability",
-    gold_checkpoint=f"{gold}/Files/checkpoints/fact_availability_15min",
+    gold_checkpoint=f"{gold}/Files/checkpoints/fact_availability_15min_v2",  # v2: foreachBatch + as-of key (Step 7)
+    dim_station=f"{gold}/Tables/dbo/dim_station",
 )
 
 # The job API only reports a generic failure, so every run writes its outcome (and traceback) to Files/runs.

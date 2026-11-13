@@ -1,0 +1,12 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/gitIntegration/platformProperties/2.0.0/schema.json",
+  "metadata": {
+    "type": "KQLDashboard",
+    "displayName": "rtd_bike_availability",
+    "description": "Live station availability: near-empty map and list, trend, events/s, latency per hop (KQL functions in kql/schema.kql)"
+  },
+  "config": {
+    "version": "2.0",
+    "logicalId": "2358b4e9-4e17-465b-8ee9-ed9838a7afac"
+  }
+}

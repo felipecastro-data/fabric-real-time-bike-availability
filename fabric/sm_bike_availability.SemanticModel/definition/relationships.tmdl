@@ -1,0 +1,11 @@
+relationship 1c60bcf2-042e-5baf-80ba-4569c0887303
+	fromColumn: fact_availability_15min.station_version_key
+	toColumn: dim_station.station_version_key
+
+relationship 0e764b46-4e9b-5b6f-9838-126d1b2785f8
+	fromColumn: fact_availability_15min.date_key
+	toColumn: dim_date.date_key
+
+relationship d28811f3-2137-5099-991e-15d9c12cceb0
+	fromColumn: fact_trips.date_key
+	toColumn: dim_date.date_key

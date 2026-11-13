@@ -9,6 +9,8 @@
 // station_status_dedup  materialized view: one row per (station_id, last_reported)
 // station_latest        materialized view: latest observation per station
 // latency_by_hop(), throughput(): latency per hop (p50/p95) and events/s
+// dim_station (external, lh_gold) + serving functions for the Real-Time Dashboard and the Activator alert.
+// {{workspace}} / {{Lakehouse:lh_gold}} are filled per stage by `fabric_ops.py kql`.
 .create-merge table station_status_raw (poll_id: string, polled_at: datetime, feed_last_updated: datetime, station_id: string, num_bikes_available: int, num_docks_available: int, num_ebikes_available: int, num_bikes_disabled: int, num_docks_disabled: int, is_installed: bool, is_renting: bool, is_returning: bool, last_reported: datetime, schema_version: int)
 
 .create-merge table station_status (poll_id: string, polled_at: datetime, feed_last_updated: datetime, station_id: string, num_bikes_available: int, num_docks_available: int, num_ebikes_available: int, num_bikes_disabled: int, num_docks_disabled: int, is_installed: bool, is_renting: bool, is_returning: bool, last_reported: datetime, schema_version: int, ingested_at: datetime, fill_rate: real, is_empty: bool, is_full: bool, is_offline: bool, report_age_s: long, is_stale: bool)
@@ -69,4 +71,47 @@
     | summarize events = count(), polls = dcount(poll_id) by minute = bin(ingested_at, 1m)
     | extend events_per_s = events / 60.0
     | order by minute asc
+}
+
+.create-or-alter external table dim_station kind=delta (h@'abfss://{{workspace}}@onelake.dfs.fabric.microsoft.com/{{Lakehouse:lh_gold}}/Tables/dbo/dim_station;impersonate') with (docString = "lh_gold dim_station (SCD2), read in place; stage IDs filled by fabric_ops kql")
+
+.create-or-alter function with (folder = "serving", docstring = "Current station attributes (name, location, capacity) from lh_gold dim_station") station_info() {
+    external_table("dim_station")
+    | where is_current
+    | project station_id, name, short_name, station_type, capacity, lat, lon
+}
+
+.create-or-alter function with (folder = "serving", docstring = "Reporting, in-service stations below 10% bikes right now, with name and location") near_empty_now() {
+    station_latest
+    | where polled_at > ago(10m) and fill_rate < 0.1 and not(is_stale) and not(is_offline)
+    | join kind=leftouter station_info() on station_id
+    | project name = coalesce(name, station_id), bikes = num_bikes_available, docks = num_docks_available, fill_rate, last_reported, station_type, lat, lon, station_id
+    | order by fill_rate asc, docks desc
+}
+
+.create-or-alter function with (folder = "serving", docstring = "Activator source: stations whose 15-min average fill rate is low and that were >= 30% an hour earlier. Rule: per station_id, fill_rate_15m becomes < 0.1 -> email") near_empty_candidates() {
+    let recent = station_status
+        | where polled_at > ago(15m) and not(is_stale) and not(is_offline)
+        | summarize fill_rate_15m = avg(fill_rate), arg_max(polled_at, num_bikes_available, num_docks_available) by station_id;
+    let hour_ago = station_status
+        | where polled_at between (ago(75m) .. ago(60m)) and not(is_stale) and not(is_offline)
+        | summarize fill_rate_1h_ago = avg(fill_rate) by station_id;
+    recent
+    | join kind=inner hour_ago on station_id
+    | where fill_rate_1h_ago >= 0.3
+    | join kind=leftouter station_info() on station_id
+    | project station_id, name = coalesce(name, station_id), fill_rate_15m, fill_rate_1h_ago, bikes = num_bikes_available, docks = num_docks_available, polled_at, lat, lon
+}
+
+.create-or-alter function with (folder = "serving", docstring = "Network status from the latest observation per station (reporting in the last 10 min)") network_now() {
+    station_latest
+    | where polled_at > ago(10m)
+    | summarize stations_reporting = count(), near_empty = countif(fill_rate < 0.1 and not(is_stale) and not(is_offline)), near_full = countif(fill_rate > 0.9 and not(is_stale) and not(is_offline)), offline = countif(is_offline), stale = countif(is_stale), bikes_available = sum(num_bikes_available)
+}
+
+.create-or-alter function with (folder = "serving", docstring = "Near-empty and near-full in-service stations per 5 min") near_empty_trend(start: datetime, end: datetime) {
+    station_status
+    | where polled_at between (start .. end) and not(is_stale) and not(is_offline)
+    | summarize near_empty = dcountif(station_id, fill_rate < 0.1), near_full = dcountif(station_id, fill_rate > 0.9) by polled_at = bin(polled_at, 5m)
+    | order by polled_at asc
 }

@@ -1,0 +1,12 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/gitIntegration/platformProperties/2.0.0/schema.json",
+  "metadata": {
+    "type": "SemanticModel",
+    "displayName": "sm_bike_availability",
+    "description": "Direct Lake: 15-min availability, SCD2 stations (as-of), medallion fact_trips + dim_date via shortcuts"
+  },
+  "config": {
+    "version": "2.0",
+    "logicalId": "83ac8f75-7bcf-4009-acce-10717af53bb5"
+  }
+}

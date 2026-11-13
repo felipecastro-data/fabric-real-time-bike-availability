@@ -55,3 +55,20 @@ def test_fill_placeholders_resolves_by_type_and_name():
     )
     filled = fabric_ops.fill_placeholders(text, "ws-1", lambda t, n: ids[(t, n)])
     assert json.loads(filled) == {"workspaceId": "ws-1", "a": "db-1", "b": "lh-1", "c": "{x}"}
+
+
+def test_resolve_placeholder_endpoints(monkeypatch):
+    responses = {
+        "/workspaces/ws/kqlDatabases": {
+            "value": [{"displayName": "kqldb_bikes", "properties": {"queryServiceUri": "https://q"}}]
+        },
+        "/workspaces/ws/items?type=Lakehouse": {"value": [{"id": "lh-1", "displayName": "lh_gold"}]},
+        "/workspaces/ws/lakehouses/lh-1": {
+            "properties": {"sqlEndpointProperties": {"id": "sql-1", "connectionString": "srv"}}
+        },
+    }
+    monkeypatch.setattr(fabric_ops, "req", lambda method, url, body=None: (200, {}, responses[url]))
+    resolve = fabric_ops.resolve_placeholder
+    assert resolve("ws", "KQLDatabaseUri", "kqldb_bikes") == "https://q"
+    assert (resolve("ws", "SqlEndpoint", "lh_gold"), resolve("ws", "SqlConnection", "lh_gold")) == ("sql-1", "srv")
+    assert resolve("ws", "Lakehouse", "lh_gold") == "lh-1"

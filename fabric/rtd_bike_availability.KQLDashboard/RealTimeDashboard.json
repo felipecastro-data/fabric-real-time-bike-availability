@@ -1,0 +1,334 @@
+{
+  "$schema": "https://dataexplorer.azure.com/static/d/schema/52/dashboard.json",
+  "schema_version": "52",
+  "title": "rtd_bike_availability",
+  "autoRefresh": {
+    "enabled": true,
+    "defaultInterval": "1m",
+    "minInterval": "30s"
+  },
+  "baseQueries": [],
+  "tiles": [
+    {
+      "id": "2f3d10f0-89e3-5537-9341-31a25e6ad3ae",
+      "title": "Stations reporting (10 min)",
+      "visualType": "card",
+      "pageId": "e429223a-4e6a-53bc-a6b4-e27ce4f9197c",
+      "layout": {
+        "x": 0,
+        "y": 0,
+        "width": 4,
+        "height": 3
+      },
+      "queryRef": {
+        "kind": "query",
+        "queryId": "d5f9332b-ae19-5021-930d-487c304c2fbb"
+      },
+      "visualOptions": {}
+    },
+    {
+      "id": "319b610f-9931-5fb2-bc2b-631e16a63c44",
+      "title": "Near empty (< 10 %)",
+      "visualType": "card",
+      "pageId": "e429223a-4e6a-53bc-a6b4-e27ce4f9197c",
+      "layout": {
+        "x": 4,
+        "y": 0,
+        "width": 4,
+        "height": 3
+      },
+      "queryRef": {
+        "kind": "query",
+        "queryId": "8ee30516-f703-55be-a4b1-31cfe05cb45f"
+      },
+      "visualOptions": {}
+    },
+    {
+      "id": "b8ff8604-81b5-5d08-ab14-b6d4a309cf2e",
+      "title": "Near full (> 90 %)",
+      "visualType": "card",
+      "pageId": "e429223a-4e6a-53bc-a6b4-e27ce4f9197c",
+      "layout": {
+        "x": 8,
+        "y": 0,
+        "width": 4,
+        "height": 3
+      },
+      "queryRef": {
+        "kind": "query",
+        "queryId": "e454b577-a32d-5da0-a791-b6a24ec50610"
+      },
+      "visualOptions": {}
+    },
+    {
+      "id": "5b3a9198-fc99-5e03-ab9a-9597135ac044",
+      "title": "Bikes available",
+      "visualType": "card",
+      "pageId": "e429223a-4e6a-53bc-a6b4-e27ce4f9197c",
+      "layout": {
+        "x": 12,
+        "y": 0,
+        "width": 4,
+        "height": 3
+      },
+      "queryRef": {
+        "kind": "query",
+        "queryId": "e3af66e6-61c8-5baa-ad15-9bf253fe0e70"
+      },
+      "visualOptions": {}
+    },
+    {
+      "id": "cd8f4f6b-3f41-5761-b414-1e2eb68950b0",
+      "title": "Near-empty stations now",
+      "visualType": "map",
+      "pageId": "e429223a-4e6a-53bc-a6b4-e27ce4f9197c",
+      "layout": {
+        "x": 0,
+        "y": 3,
+        "width": 12,
+        "height": 10
+      },
+      "queryRef": {
+        "kind": "query",
+        "queryId": "9f07adea-8540-576a-ae9d-b154d4bf837c"
+      },
+      "visualOptions": {
+        "map__bubbleFormat": "dot",
+        "map__latitudeColumn": "lat",
+        "map__longitudeColumn": "lon"
+      }
+    },
+    {
+      "id": "e36838b0-e7ce-5bec-8b96-1ee9036b4f2d",
+      "title": "Near-empty stations (fewest bikes first)",
+      "visualType": "table",
+      "pageId": "e429223a-4e6a-53bc-a6b4-e27ce4f9197c",
+      "layout": {
+        "x": 12,
+        "y": 3,
+        "width": 12,
+        "height": 10
+      },
+      "queryRef": {
+        "kind": "query",
+        "queryId": "a2ec9526-e157-5c23-b119-7183746665c9"
+      },
+      "visualOptions": {}
+    },
+    {
+      "id": "ac66d3cd-80da-5d57-a289-44114c445466",
+      "title": "Near-empty vs near-full stations (5 min)",
+      "visualType": "line",
+      "pageId": "e429223a-4e6a-53bc-a6b4-e27ce4f9197c",
+      "layout": {
+        "x": 0,
+        "y": 13,
+        "width": 12,
+        "height": 7
+      },
+      "queryRef": {
+        "kind": "query",
+        "queryId": "c109151d-56ca-58ae-a86e-019c7cae8421"
+      },
+      "visualOptions": {
+        "xColumn": "polled_at",
+        "yColumns": [
+          "near_empty",
+          "near_full"
+        ]
+      }
+    },
+    {
+      "id": "3ecb1b4c-2ee5-5baa-aa37-e0585f803514",
+      "title": "Events per second (per minute)",
+      "visualType": "line",
+      "pageId": "e429223a-4e6a-53bc-a6b4-e27ce4f9197c",
+      "layout": {
+        "x": 12,
+        "y": 13,
+        "width": 12,
+        "height": 7
+      },
+      "queryRef": {
+        "kind": "query",
+        "queryId": "d98cce35-1d37-5013-a8c7-1b8e08766ff7"
+      },
+      "visualOptions": {
+        "xColumn": "minute",
+        "yColumns": [
+          "events_per_s"
+        ]
+      }
+    },
+    {
+      "id": "b742d7e7-0887-5267-937e-cc7eda29437e",
+      "title": "Latency per hop, seconds (p50 / p95)",
+      "visualType": "table",
+      "pageId": "e429223a-4e6a-53bc-a6b4-e27ce4f9197c",
+      "layout": {
+        "x": 0,
+        "y": 20,
+        "width": 24,
+        "height": 4
+      },
+      "queryRef": {
+        "kind": "query",
+        "queryId": "b9441cbd-45de-585f-8fab-7939cb1966fd"
+      },
+      "visualOptions": {}
+    },
+    {
+      "id": "25f4c503-bc62-579d-8657-a6ea532df3f6",
+      "title": "Alert candidates: busy stations dropping (Activator source)",
+      "visualType": "table",
+      "pageId": "e429223a-4e6a-53bc-a6b4-e27ce4f9197c",
+      "layout": {
+        "x": 0,
+        "y": 24,
+        "width": 24,
+        "height": 6
+      },
+      "queryRef": {
+        "kind": "query",
+        "queryId": "5dbf0830-dc88-5fc6-95bd-e73d3e7e37ac"
+      },
+      "visualOptions": {}
+    }
+  ],
+  "dataSources": [
+    {
+      "id": "f4ace0d4-6e74-52c8-a542-566d3dd2bf01",
+      "name": "kqldb_bikes",
+      "scopeId": "kusto-trident",
+      "kind": "kusto-trident",
+      "clusterUri": "{{KQLDatabaseUri:kqldb_bikes}}",
+      "database": "{{KQLDatabase:kqldb_bikes}}",
+      "workspace": "{{workspace}}"
+    }
+  ],
+  "pages": [
+    {
+      "name": "Live",
+      "id": "e429223a-4e6a-53bc-a6b4-e27ce4f9197c"
+    }
+  ],
+  "parameters": [
+    {
+      "kind": "duration",
+      "id": "fe87374d-8c20-56ca-9985-00dc3c94fec7",
+      "displayName": "Time range",
+      "description": "",
+      "beginVariableName": "_startTime",
+      "endVariableName": "_endTime",
+      "defaultValue": {
+        "kind": "dynamic",
+        "count": 6,
+        "unit": "hours"
+      },
+      "showOnPages": {
+        "kind": "all"
+      }
+    }
+  ],
+  "queries": [
+    {
+      "id": "d5f9332b-ae19-5021-930d-487c304c2fbb",
+      "dataSource": {
+        "kind": "inline",
+        "dataSourceId": "f4ace0d4-6e74-52c8-a542-566d3dd2bf01"
+      },
+      "text": "network_now() | project stations_reporting",
+      "usedVariables": []
+    },
+    {
+      "id": "8ee30516-f703-55be-a4b1-31cfe05cb45f",
+      "dataSource": {
+        "kind": "inline",
+        "dataSourceId": "f4ace0d4-6e74-52c8-a542-566d3dd2bf01"
+      },
+      "text": "network_now() | project near_empty",
+      "usedVariables": []
+    },
+    {
+      "id": "e454b577-a32d-5da0-a791-b6a24ec50610",
+      "dataSource": {
+        "kind": "inline",
+        "dataSourceId": "f4ace0d4-6e74-52c8-a542-566d3dd2bf01"
+      },
+      "text": "network_now() | project near_full",
+      "usedVariables": []
+    },
+    {
+      "id": "e3af66e6-61c8-5baa-ad15-9bf253fe0e70",
+      "dataSource": {
+        "kind": "inline",
+        "dataSourceId": "f4ace0d4-6e74-52c8-a542-566d3dd2bf01"
+      },
+      "text": "network_now() | project bikes_available",
+      "usedVariables": []
+    },
+    {
+      "id": "9f07adea-8540-576a-ae9d-b154d4bf837c",
+      "dataSource": {
+        "kind": "inline",
+        "dataSourceId": "f4ace0d4-6e74-52c8-a542-566d3dd2bf01"
+      },
+      "text": "near_empty_now()",
+      "usedVariables": []
+    },
+    {
+      "id": "a2ec9526-e157-5c23-b119-7183746665c9",
+      "dataSource": {
+        "kind": "inline",
+        "dataSourceId": "f4ace0d4-6e74-52c8-a542-566d3dd2bf01"
+      },
+      "text": "near_empty_now() | project name, bikes, docks, fill_rate = round(fill_rate, 3), last_reported, station_type",
+      "usedVariables": []
+    },
+    {
+      "id": "c109151d-56ca-58ae-a86e-019c7cae8421",
+      "dataSource": {
+        "kind": "inline",
+        "dataSourceId": "f4ace0d4-6e74-52c8-a542-566d3dd2bf01"
+      },
+      "text": "near_empty_trend(_startTime, _endTime)",
+      "usedVariables": [
+        "_startTime",
+        "_endTime"
+      ]
+    },
+    {
+      "id": "d98cce35-1d37-5013-a8c7-1b8e08766ff7",
+      "dataSource": {
+        "kind": "inline",
+        "dataSourceId": "f4ace0d4-6e74-52c8-a542-566d3dd2bf01"
+      },
+      "text": "throughput(_endTime - _startTime) | make-series events_per_s = avg(events_per_s) default = 0 on minute from bin(_startTime, 1m) to _endTime step 1m | mv-expand minute to typeof(datetime), events_per_s to typeof(real)  // gaps = 0, not a line across",
+      "usedVariables": [
+        "_startTime",
+        "_endTime"
+      ]
+    },
+    {
+      "id": "b9441cbd-45de-585f-8fab-7939cb1966fd",
+      "dataSource": {
+        "kind": "inline",
+        "dataSourceId": "f4ace0d4-6e74-52c8-a542-566d3dd2bf01"
+      },
+      "text": "latency_by_hop(_endTime - _startTime) | project events, stations, p50_poll_to_ingest_s = round(p50_poll_to_ingest_s, 1), p95_poll_to_ingest_s = round(p95_poll_to_ingest_s, 1), p50_feed_to_poll_s = round(p50_feed_to_poll_s, 1), p95_feed_to_poll_s = round(p95_feed_to_poll_s, 1), p50_station_to_feed_s = round(p50_station_to_feed_s, 1), events_per_s = round(events_per_s, 1)",
+      "usedVariables": [
+        "_startTime",
+        "_endTime"
+      ]
+    },
+    {
+      "id": "5dbf0830-dc88-5fc6-95bd-e73d3e7e37ac",
+      "dataSource": {
+        "kind": "inline",
+        "dataSourceId": "f4ace0d4-6e74-52c8-a542-566d3dd2bf01"
+      },
+      "text": "near_empty_candidates() | project station_id, name, fill_rate_15m = round(fill_rate_15m, 3), fill_rate_1h_ago = round(fill_rate_1h_ago, 3), bikes, docks, polled_at",
+      "usedVariables": []
+    }
+  ]
+}

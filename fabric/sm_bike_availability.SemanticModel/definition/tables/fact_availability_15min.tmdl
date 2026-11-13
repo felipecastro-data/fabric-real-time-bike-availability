@@ -1,0 +1,119 @@
+table fact_availability_15min
+	lineageTag: 5d905fe1-eefe-56dc-b2f4-f7b6fbd6a8ad
+
+	/// Station observations (one per station per minute)
+	measure 'Observations' = SUM ( fact_availability_15min[polls] )
+		formatString: #,0
+		lineageTag: 976ec700-52dd-5d64-a0ce-20de0090020d
+
+	/// Minutes a station had no bikes
+	measure 'Minutes empty' = SUM ( fact_availability_15min[minutes_empty] )
+		formatString: #,0
+		lineageTag: 49dcbffe-12d5-5dfb-879e-35c157583bd8
+
+	/// Minutes a station had no free docks
+	measure 'Minutes full' = SUM ( fact_availability_15min[minutes_full] )
+		formatString: #,0
+		lineageTag: c7337817-92f8-54c4-9c7e-a1d355345371
+
+	/// Share of observed minutes with no bikes
+	measure 'Empty share' = DIVIDE ( [Minutes empty], [Observations] )
+		formatString: 0.0%
+		lineageTag: 0283189a-6033-54e0-8cb2-717b5584226d
+
+	/// Bikes / (bikes + free docks), weighted by observations
+	measure 'Avg fill rate' = DIVIDE ( SUMX ( fact_availability_15min, fact_availability_15min[avg_fill_rate] * fact_availability_15min[polls] ), SUMX ( FILTER ( fact_availability_15min, NOT ISBLANK ( fact_availability_15min[avg_fill_rate] ) ), fact_availability_15min[polls] ) )
+		formatString: 0.0%
+		lineageTag: d89d40c8-a17d-57fb-890d-51c0041e2490
+
+	/// Average trips per day starting at the selected stations in the latest month of medallion fact_trips (bridge: short_name)
+	measure 'Avg daily trip starts' = VAR keys = VALUES ( dim_station[trips_station_key] ) VAR latest = CALCULATE ( MAX ( fact_trips[date_key] ), REMOVEFILTERS () ) RETURN CALCULATE ( DIVIDE ( COUNTROWS ( fact_trips ), DISTINCTCOUNT ( fact_trips[date_key] ) ), REMOVEFILTERS ( dim_date ), fact_trips[date_key] > INT ( latest / 100 ) * 100, TREATAS ( keys, fact_trips[start_station_key] ) )
+		formatString: #,0.0
+		lineageTag: fdb40fe2-94ab-5226-8a39-33ce55e6282d
+
+	/// Historic daily demand x current share of empty minutes: trips likely missed per day
+	measure 'Starts at risk per day' = [Avg daily trip starts] * [Empty share]
+		formatString: #,0.0
+		lineageTag: 32fb52d5-0c50-5955-bd86-05ad4bda8e29
+
+	column station_id
+		dataType: string
+		isHidden
+		lineageTag: b25efd72-a0a9-5984-8d6e-ae894842ce6e
+		summarizeBy: none
+		sourceColumn: station_id
+
+	column window_start
+		dataType: dateTime
+		lineageTag: 67cf156e-e1e4-5a9f-a03d-d3f2d20c49aa
+		summarizeBy: none
+		sourceColumn: window_start
+
+	column window_end
+		dataType: dateTime
+		lineageTag: 2d1f7d2e-9c9f-5654-ac7d-7018c07f2da6
+		summarizeBy: none
+		sourceColumn: window_end
+
+	column polls
+		dataType: int64
+		lineageTag: 1a7b53fe-0c69-5564-99c5-3896268dab6b
+		summarizeBy: none
+		sourceColumn: polls
+
+	column avg_fill_rate
+		dataType: double
+		lineageTag: 2e2a5ee1-3e94-5f20-9ec1-baf167ebeafa
+		summarizeBy: none
+		sourceColumn: avg_fill_rate
+
+	column min_bikes_available
+		dataType: int64
+		lineageTag: 8810a9db-af42-5e47-a40e-dcd4ff329bdd
+		summarizeBy: none
+		sourceColumn: min_bikes_available
+
+	column max_bikes_available
+		dataType: int64
+		lineageTag: 2ec607dc-558f-5ac2-97e1-73d6da19133e
+		summarizeBy: none
+		sourceColumn: max_bikes_available
+
+	column minutes_empty
+		dataType: int64
+		lineageTag: f3b4fb12-d248-5a2b-9867-694926d50cdd
+		summarizeBy: none
+		sourceColumn: minutes_empty
+
+	column minutes_full
+		dataType: int64
+		lineageTag: 24274a45-d8f0-5edc-b0b1-6350e2098796
+		summarizeBy: none
+		sourceColumn: minutes_full
+
+	column minutes_offline
+		dataType: int64
+		lineageTag: 4ce6fd1b-5ac3-5f9d-b8e5-a7f67d377152
+		summarizeBy: none
+		sourceColumn: minutes_offline
+
+	column station_version_key
+		dataType: int64
+		isHidden
+		lineageTag: c180aab1-e22b-5e19-8d3d-691889d12594
+		summarizeBy: none
+		sourceColumn: station_version_key
+
+	column date_key
+		dataType: int64
+		isHidden
+		lineageTag: 33b400b4-152c-5474-ac0c-e6d2e363b37b
+		summarizeBy: none
+		sourceColumn: date_key
+
+	partition fact_availability_15min = entity
+		mode: directLake
+		source
+			entityName: fact_availability_15min
+			schemaName: dbo
+			expressionSource: DatabaseQuery
