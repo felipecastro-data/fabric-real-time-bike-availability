@@ -1,0 +1,12 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/gitIntegration/platformProperties/2.0.0/schema.json",
+  "metadata": {
+    "type": "Notebook",
+    "displayName": "nb_silver_availability",
+    "description": "Structured Streaming: Bronze station_status_events -> Silver station_availability + dead-letter, Gold fact_availability_15min"
+  },
+  "config": {
+    "version": "2.0",
+    "logicalId": "0ffbde14-1893-4d8f-8100-10f1dc7f8ea7"
+  }
+}

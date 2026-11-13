@@ -13,10 +13,10 @@ on:
       notebook:
         description: Notebook to run
         type: choice
-        options: [nb_gbfs_poller, nb_bronze_station_information]
+        options: [nb_gbfs_poller, nb_bronze_station_information, nb_silver_availability]
         default: nb_gbfs_poller
       parameters:
-        description: 'Notebook parameters as JSON, e.g. {"duration_minutes": "3"}'
+        description: 'Notebook parameters as JSON, e.g. {"duration_minutes": "3"} (nb_silver_availability: "0" = availableNow)'
         required: false
         default: '{"duration_minutes": "3"}'
       upload_wheel:
