@@ -196,3 +196,57 @@ def apply_snapshots(spark: SparkSession, bronze_info_path: str, dim_path: str) -
         staged.unpersist()
         applied.append({"snapshot_date": snapshot_date.isoformat(), "effective_at": effective_at.isoformat(), **counts})
     return applied
+
+
+def as_of_version_key(facts: DataFrame, dim: DataFrame | None, at: str = "window_start") -> DataFrame:
+    """Add `station_version_key`: the version valid at `facts[at]`. Initial versions also cover the time before the
+    first snapshot (the stream starts before the first daily load). No version (yet) → null."""
+    if dim is None:
+        return facts.withColumn("station_version_key", F.lit(None).cast("long"))
+    versions = dim.select(
+        F.col("station_id").alias("_sid"), "station_version_key", "valid_from", "valid_to", "change_reason"
+    )
+    match = (
+        (F.col("station_id") == F.col("_sid"))
+        & (F.col(at) < F.col("valid_to"))
+        & ((F.col(at) >= F.col("valid_from")) | (F.col("change_reason") == "initial"))
+    )
+    return facts.join(versions, match, "left").drop("_sid", "valid_from", "valid_to", "change_reason")
+
+
+def rekey_facts(spark: SparkSession, dim_path: str, fact_path: str, attempts: int = 3) -> int:
+    """Re-point fact rows whose as-of version changed (windows written before the day's snapshot was applied, or
+    before the first one). Retries on a concurrent write from the streaming job; returns rows updated."""
+    import time
+
+    from delta.tables import DeltaTable
+
+    if not DeltaTable.isDeltaTable(spark, fact_path):  # the stream has not written Gold yet
+        return 0
+    for attempt in range(1, attempts + 1):
+        facts = spark.read.format("delta").load(fact_path)
+        fixed = (
+            as_of_version_key(
+                facts.withColumnRenamed("station_version_key", "_old"), spark.read.format("delta").load(dim_path)
+            )
+            .where(~F.col("_old").eqNullSafe(F.col("station_version_key")))
+            .select("station_id", "window_start", "station_version_key")
+        ).persist()
+        changed = fixed.count()
+        try:
+            if changed:
+                (
+                    DeltaTable.forPath(spark, fact_path)
+                    .alias("t")
+                    .merge(fixed.alias("s"), "t.station_id = s.station_id AND t.window_start = s.window_start")
+                    .whenMatchedUpdate(set={"station_version_key": "s.station_version_key"})
+                    .execute()
+                )
+            return changed
+        except Exception as error:  # Delta concurrent-modification exceptions
+            if "Concurrent" not in type(error).__name__ + str(error)[:200] or attempt == attempts:
+                raise
+            time.sleep(30)
+        finally:
+            fixed.unpersist()
+    raise AssertionError("unreachable")

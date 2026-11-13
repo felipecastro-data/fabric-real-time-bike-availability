@@ -1,0 +1,82 @@
+table dim_date
+	lineageTag: dff79508-bd99-54c8-99e7-89d7c44adbf6
+
+	column date_key
+		dataType: int64
+		isHidden
+		lineageTag: dc3ba6ec-f2e6-5780-8e6e-cca9527e003d
+		summarizeBy: none
+		sourceColumn: date_key
+
+	column date
+		dataType: dateTime
+		lineageTag: f631b88c-4a03-561a-ade9-cb838894573a
+		summarizeBy: none
+		sourceColumn: date
+
+	column year
+		dataType: int64
+		lineageTag: 12a3f3a6-8305-5104-8f24-874c96c01d0f
+		summarizeBy: none
+		sourceColumn: year
+
+	column quarter
+		dataType: int64
+		lineageTag: bb3ee29c-dd63-556f-9344-10b8eefe7ad8
+		summarizeBy: none
+		sourceColumn: quarter
+
+	column month
+		dataType: int64
+		lineageTag: e498cc92-1d79-50c5-972c-1d21a7fb43f1
+		summarizeBy: none
+		sourceColumn: month
+
+	column month_name
+		dataType: string
+		lineageTag: 8142d23a-5ff7-52fc-b2e0-dd74cfb00821
+		summarizeBy: none
+		sourceColumn: month_name
+
+	column day
+		dataType: int64
+		lineageTag: 1a12376b-b603-52f3-8ed7-33f443c473f9
+		summarizeBy: none
+		sourceColumn: day
+
+	column day_of_week
+		dataType: int64
+		lineageTag: 7e09d3b2-3b63-5a87-a2b5-a1447f2a4c64
+		summarizeBy: none
+		sourceColumn: day_of_week
+
+	column day_name
+		dataType: string
+		lineageTag: b2a66cbd-64a3-5c88-82cd-78ab158bb395
+		summarizeBy: none
+		sourceColumn: day_name
+
+	column is_weekend
+		dataType: boolean
+		lineageTag: 7dfe64c4-8d7d-5d54-bae3-0264629fbd3a
+		summarizeBy: none
+		sourceColumn: is_weekend
+
+	column is_holiday
+		dataType: boolean
+		lineageTag: 5081c9b5-8877-5b23-8970-ef60a000c598
+		summarizeBy: none
+		sourceColumn: is_holiday
+
+	column holiday_name
+		dataType: string
+		lineageTag: 9e9e6b7b-2a44-56f2-8126-7ed269fb206e
+		summarizeBy: none
+		sourceColumn: holiday_name
+
+	partition dim_date = entity
+		mode: directLake
+		source
+			entityName: dim_date
+			schemaName: dbo
+			expressionSource: DatabaseQuery

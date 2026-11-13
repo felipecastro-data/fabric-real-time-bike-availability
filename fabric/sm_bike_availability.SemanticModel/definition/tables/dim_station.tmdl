@@ -1,0 +1,120 @@
+table dim_station
+	lineageTag: 579ef263-3477-58fe-b585-cf3f1c2e8b95
+
+	column station_version_key
+		dataType: int64
+		isHidden
+		lineageTag: 2c9532f3-7e4b-5b7a-9830-6bef7820e96b
+		summarizeBy: none
+		sourceColumn: station_version_key
+
+	column station_key
+		dataType: int64
+		isHidden
+		lineageTag: 9b073310-8145-5f25-ac53-35ef7e920059
+		summarizeBy: none
+		sourceColumn: station_key
+
+	column station_id
+		dataType: string
+		lineageTag: c47a7e83-5ba5-5538-af7a-a7f5da010f2a
+		summarizeBy: none
+		sourceColumn: station_id
+
+	column trips_station_key
+		dataType: int64
+		isHidden
+		lineageTag: 7e452ae9-fa42-5904-81c1-a9fcccd87184
+		summarizeBy: none
+		sourceColumn: trips_station_key
+
+	column name
+		dataType: string
+		lineageTag: 727a5a0b-7efd-5f8e-ba7a-65e8357a2f3a
+		summarizeBy: none
+		sourceColumn: name
+
+	column short_name
+		dataType: string
+		lineageTag: 73e9f050-13b1-54d6-b5a7-d405371980b2
+		summarizeBy: none
+		sourceColumn: short_name
+
+	column station_type
+		dataType: string
+		lineageTag: 76138230-757b-5249-bbec-8219c20f1962
+		summarizeBy: none
+		sourceColumn: station_type
+
+	column capacity
+		dataType: int64
+		lineageTag: f6d5b0d9-f60d-5e56-9d51-25c842c4f9dc
+		summarizeBy: none
+		sourceColumn: capacity
+
+	column lat
+		dataType: double
+		lineageTag: 90efcb99-1ad0-57da-8a67-4879cb9d1e01
+		summarizeBy: none
+		sourceColumn: lat
+
+	column lon
+		dataType: double
+		lineageTag: cb1b7c8c-5755-59cd-8eb5-500f536b187f
+		summarizeBy: none
+		sourceColumn: lon
+
+	column region_id
+		dataType: string
+		lineageTag: 292b6d88-436c-55b0-953b-b107eb4f6d0a
+		summarizeBy: none
+		sourceColumn: region_id
+
+	column address
+		dataType: string
+		lineageTag: 3cb8183b-ce32-5395-a290-16b3aa8a098e
+		summarizeBy: none
+		sourceColumn: address
+
+	column is_charging
+		dataType: boolean
+		lineageTag: 72fdc6ac-e3b5-5db0-942d-dec467694e9d
+		summarizeBy: none
+		sourceColumn: is_charging
+
+	column valid_from
+		dataType: dateTime
+		lineageTag: 3646b9de-283f-5d82-9ba1-b760474a3eaf
+		summarizeBy: none
+		sourceColumn: valid_from
+
+	column valid_to
+		dataType: dateTime
+		lineageTag: 455d073f-f1f9-5f82-b887-9baad0eabf07
+		summarizeBy: none
+		sourceColumn: valid_to
+
+	column is_current
+		dataType: boolean
+		lineageTag: def80c4f-b6b3-5113-9e45-73291358d6e0
+		summarizeBy: none
+		sourceColumn: is_current
+
+	column change_reason
+		dataType: string
+		lineageTag: 5c86aa4c-4bac-504a-9651-e871cb0b54f4
+		summarizeBy: none
+		sourceColumn: change_reason
+
+	column end_reason
+		dataType: string
+		lineageTag: 032642b1-a5f9-5528-9a27-e584dc44290d
+		summarizeBy: none
+		sourceColumn: end_reason
+
+	partition dim_station = entity
+		mode: directLake
+		source
+			entityName: dim_station
+			schemaName: dbo
+			expressionSource: DatabaseQuery

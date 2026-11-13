@@ -12,7 +12,7 @@ from pyspark.sql import types as T  # noqa: E402
 
 from divvy_rti import dq  # noqa: E402
 from divvy_rti.availability import write_silver_batch  # noqa: E402
-from divvy_rti.dim_station import apply_snapshots, hash_key  # noqa: E402
+from divvy_rti.dim_station import apply_snapshots, hash_key, rekey_facts  # noqa: E402
 from divvy_rti.gbfs import station_information_rows  # noqa: E402
 
 INFO_SCHEMA = T.StructType(
@@ -148,3 +148,32 @@ def test_bridge_coverage(spark, tmp_path):
     )
     stations, share = dq.coverage_checks(dim(spark, gold), trips)
     assert stations.value == 0.5 and share.value == pytest.approx(2 / 3)  # Nov: 3 station trips, 2 join; dockless out
+
+
+def test_gold_gets_as_of_version_and_rekey_fixes_late_snapshots(spark, tmp_path):
+    from test_availability import append_bronze, paths, row
+
+    from divvy_rti.availability import run
+
+    p = paths(tmp_path)
+    info = payload()
+    first, second = info["data"]["stations"][0]["station_id"], info["data"]["stations"][1]["station_id"]
+    start = datetime(2026, 11, 13, 12, 0, tzinfo=UTC)
+    land(spark, str(tmp_path / "info"), info, start + timedelta(minutes=30))  # first snapshot after the stream started
+
+    # Windows 12:00 and 12:15 emitted; no dimension yet → null key
+    append_bronze(spark, p, [row(first, m) for m in range(41)] + [row(second, m) for m in range(41)])
+    run(spark, p)
+    gold = spark.read.format("delta").load(p.gold)
+    assert gold.count() == 4 and gold.where("station_version_key IS NULL").count() == 4
+    assert {r.date_key for r in gold.collect()} == {20261113}
+
+    apply_snapshots(spark, str(tmp_path / "info"), p.dim_station)
+    assert rekey_facts(spark, p.dim_station, p.gold) == 4  # initial versions also cover the time before the load
+    assert rekey_facts(spark, p.dim_station, p.gold) == 0
+    keyed = (
+        spark.read.format("delta")
+        .load(p.gold)
+        .join(spark.read.format("delta").load(p.dim_station), ["station_version_key", "station_id"])
+    )
+    assert keyed.count() == 4

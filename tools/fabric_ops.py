@@ -72,6 +72,19 @@ def fill_placeholders(text: str, ws: str, item_id: Callable[[str, str], str]) ->
     return PLACEHOLDER.sub(lambda m: ws if m[1] == "workspace" else item_id(m[2], m[3]), text)
 
 
+def resolve_placeholder(ws: str, item_type: str, name: str) -> str:
+    """`{{<Type>:<name>}}` → item ID, plus stage-specific endpoints: `KQLDatabaseUri` (query URI), `SqlEndpoint`
+    (lakehouse SQL endpoint ID) and `SqlConnection` (its server name), used by the dashboard and the semantic model."""
+    if item_type == "KQLDatabaseUri":
+        _, _, items = req("GET", f"/workspaces/{ws}/kqlDatabases")
+        return next(i["properties"]["queryServiceUri"] for i in items["value"] if i["displayName"] == name)
+    if item_type in ("SqlEndpoint", "SqlConnection"):
+        _, _, lakehouse = req("GET", f"/workspaces/{ws}/lakehouses/{workspace_item_id(ws, 'Lakehouse', name)}")
+        sql = lakehouse["properties"]["sqlEndpointProperties"]
+        return sql["id"] if item_type == "SqlEndpoint" else sql["connectionString"]
+    return workspace_item_id(ws, item_type, name)
+
+
 def workspace_item_id(ws: str, item_type: str, name: str) -> str:
     _, _, items = req("GET", f"/workspaces/{ws}/items?type={item_type}")
     matches = [i["id"] for i in items["value"] if i["displayName"] == name]
@@ -97,7 +110,7 @@ def item_definition(item_dir: Path, fill: Callable[[str], str] = lambda text: te
 
 def push_item(ws: str, item_dir: Path) -> str:
     """Create the item, or update the definition of the existing item with the same name and type."""
-    fill = lambda text: fill_placeholders(text, ws, lambda item_type, name: workspace_item_id(ws, item_type, name))  # noqa: E731
+    fill = lambda text: fill_placeholders(text, ws, lambda item_type, name: resolve_placeholder(ws, item_type, name))  # noqa: E731
     name, item_type, definition = item_definition(item_dir, fill)
     _, _, items = req("GET", f"/workspaces/{ws}/items?type={item_type}")
     existing = [i["id"] for i in items["value"] if i["displayName"] == name]
@@ -185,7 +198,8 @@ def script_failures(results: list[dict]) -> list[str]:
 def apply_kql_script(ws: str, database: str, script: Path) -> int:
     _, _, items = req("GET", f"/workspaces/{ws}/kqlDatabases")
     db = next(i for i in items["value"] if i["displayName"] == database)
-    command = ".execute database script with (ContinueOnErrors = false) <|\n" + script.read_text()
+    text = fill_placeholders(script.read_text(), ws, lambda item_type, name: resolve_placeholder(ws, item_type, name))
+    command = ".execute database script with (ContinueOnErrors = false) <|\n" + text
     results = kusto_mgmt(db["properties"]["queryServiceUri"], database, command)
     failures = script_failures(results)
     if failures:

@@ -6,7 +6,8 @@ key, so replaying a micro-batch after a crash is a no-op (exactly-once with the 
 contract go to `availability_deadletter` with a reason code, keyed by a hash of the Bronze row (also replay-safe).
 
 Gold: 15-min windows per station from every valid poll (not the deduped Silver: an idle station is still observed
-every minute). Watermark 10 min on `polled_at`, dedup of `(station_id, poll_id)` within the watermark, append mode.
+every minute). Watermark 10 min on `polled_at`, dedup of `(station_id, poll_id)` within the watermark, append mode;
+finalized windows get the as-of `dim_station` version and are MERGEd insert-only (replay-safe).
 """
 
 from __future__ import annotations
@@ -102,6 +103,8 @@ GOLD_SCHEMA = T.StructType(
         T.StructField("minutes_empty", T.LongType()),  # polls are 60 s apart: one poll ≈ one minute
         T.StructField("minutes_full", T.LongType()),
         T.StructField("minutes_offline", T.LongType()),
+        T.StructField("station_version_key", T.LongType()),  # dim_station version valid at window_start (as-of)
+        T.StructField("date_key", T.IntegerType()),  # Chicago date of window_start, yyyyMMdd (medallion dim_date)
     ]
 )
 
@@ -248,6 +251,29 @@ def gold_windows(bronze_stream: DataFrame) -> DataFrame:
     )
 
 
+def write_gold_batch(batch: DataFrame, batch_id: int, gold_path: str, dim_path: str) -> None:
+    """`foreachBatch` body for the finalized windows: as-of station version + date key, insert-only MERGE on
+    `(station_id, window_start)` → a replayed batch changes nothing."""
+    from delta.tables import DeltaTable
+
+    from divvy_rti.dim_station import as_of_version_key
+
+    spark = batch.sparkSession
+    dim = spark.read.format("delta").load(dim_path) if DeltaTable.isDeltaTable(spark, dim_path) else None
+    local_date = F.from_utc_timestamp("window_start", "America/Chicago")
+    rows = as_of_version_key(batch, dim).withColumn("date_key", F.date_format(local_date, "yyyyMMdd").cast("int"))
+    (
+        DeltaTable.forPath(spark, gold_path)
+        .alias("t")
+        .merge(
+            rows.select(*[f.name for f in GOLD_SCHEMA.fields]).alias("s"),
+            "t.station_id = s.station_id AND t.window_start = s.window_start",
+        )
+        .whenNotMatchedInsertAll()
+        .execute()
+    )
+
+
 @dataclass(frozen=True)
 class Paths:
     bronze: str  # Bronze station_status_events table
@@ -256,6 +282,7 @@ class Paths:
     gold: str
     silver_checkpoint: str
     gold_checkpoint: str
+    dim_station: str  # lh_gold dim_station (SCD2), for the as-of station version of each window
 
 
 def run(spark: SparkSession, paths: Paths, duration_s: float = 0, processing_time: str = "1 minute") -> dict:
@@ -281,10 +308,10 @@ def run(spark: SparkSession, paths: Paths, duration_s: float = 0, processing_tim
     gold = trigger(
         gold_windows(bronze())
         .writeStream.queryName("gold_fact_availability_15min")
-        .format("delta")
         .outputMode("append")
+        .foreachBatch(lambda df, batch_id: write_gold_batch(df, batch_id, paths.gold, paths.dim_station))
         .option("checkpointLocation", paths.gold_checkpoint)
-    ).start(paths.gold)
+    ).start()
 
     queries = (silver, gold)
     if duration_s == 0:

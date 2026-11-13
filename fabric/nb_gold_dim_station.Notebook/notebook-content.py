@@ -15,6 +15,7 @@
 # - Applies every `lh_bronze` `dbo.station_information` snapshot newer than `lh_gold` `dbo.dim_station`, oldest first:
 #   hash-diff on name / short_name / capacity + relocation > 100 m → new version dated by the feed's `last_updated`;
 #   small drift, region, address, charging → type 1; missing stations closed with `end_reason = 'removed'`
+# - Re-points `fact_availability_15min` rows whose as-of station version changed (windows written before the load)
 # - DQ gate: SCD2 invariants, Bronze = Silver + dead-letter, dead-letter rate, Silver freshness → fails the run
 # - Reports the trips bridge coverage (`short_name` ↔ medallion `fact_trips`, not gating)
 # - Results appended to `lh_gold` `dbo.dq_results`; run record in `lh_gold/Files/runs/nb_gold_dim_station/`
@@ -73,7 +74,7 @@ from dataclasses import asdict
 from datetime import UTC, datetime, timedelta
 
 from divvy_rti import dq
-from divvy_rti.dim_station import apply_snapshots
+from divvy_rti.dim_station import apply_snapshots, rekey_facts
 
 
 def table(root, name):
@@ -86,6 +87,8 @@ def read(root, name):
 
 def run_checks(now):
     applied = apply_snapshots(spark, table(bronze, "station_information"), table(gold, "dim_station"))
+    rekeyed = rekey_facts(spark, table(gold, "dim_station"), table(gold, "fact_availability_15min"))
+    applied.append({"fact_rows_rekeyed": rekeyed})
     events, silver_rows, deadletter = read(bronze, "station_status_events"), read(silver, "station_availability"), read(silver, "availability_deadletter")
     checks = [
         *dq.scd2_checks(read(gold, "dim_station")),

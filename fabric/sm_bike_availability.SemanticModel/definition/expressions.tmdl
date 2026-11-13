@@ -1,0 +1,7 @@
+/// lh_gold SQL endpoint of this stage (filled by fabric_ops push)
+expression DatabaseQuery =
+		let
+		    database = Sql.Database("{{SqlConnection:lh_gold}}", "{{SqlEndpoint:lh_gold}}")
+		in
+		    database
+	lineageTag: 9dd89a3f-d431-5882-8c8e-b67d4f8c4558

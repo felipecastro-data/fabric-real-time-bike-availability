@@ -74,6 +74,7 @@ def paths(tmp_path):
         gold=str(tmp_path / "gold"),
         silver_checkpoint=str(tmp_path / "chk_silver"),
         gold_checkpoint=str(tmp_path / "chk_gold"),
+        dim_station=str(tmp_path / "dim_station"),
     )
 
 
