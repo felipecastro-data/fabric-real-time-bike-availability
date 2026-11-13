@@ -180,7 +180,7 @@
     {
       "id": "25f4c503-bc62-579d-8657-a6ea532df3f6",
       "title": "Alert candidates: busy stations dropping (Activator source)",
-      "visualType": "table",
+      "visualType": "column",
       "pageId": "e429223a-4e6a-53bc-a6b4-e27ce4f9197c",
       "layout": {
         "x": 0,
@@ -192,7 +192,12 @@
         "kind": "query",
         "queryId": "5dbf0830-dc88-5fc6-95bd-e73d3e7e37ac"
       },
-      "visualOptions": {}
+      "visualOptions": {
+        "xColumn": "station_id",
+        "yColumns": [
+          "fill_rate_15m"
+        ]
+      }
     }
   ],
   "dataSources": [
