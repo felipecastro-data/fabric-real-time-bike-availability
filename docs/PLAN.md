@@ -1,6 +1,6 @@
 # Project plan & progress
 
-**Progress: Steps 1–7 done, Step 8 CD built — 7.3 of 8 steps**
+**Progress: Steps 1–7 done, Step 8 CD green as the service principal, prod schedules set — 7.5 of 8 steps**
 
 Fabric Real-Time Bike Availability: a streaming + CDC/SCD2 platform on the Divvy domain. Operations see which
 Chicago stations are about to run empty or full, minutes ahead; analysts get station history (renames, capacity
@@ -212,7 +212,7 @@ pause by **2026-12-08**, buffer to trial end.
 - [x] Latency functions `latency_by_hop()` / `throughput()`. Dev 2026-11-12 (3 polls, indicative only):
       poll → ingest p50 **1.4 s** / p95 **7.5 s**; feed → poll ~85 s; station → feed p50 127 s (p95 is months: idle
       stations, flagged `is_stale`); peak 69 events/s per minute. Prod 7-day numbers come in Step 8.
-- [ ] **Step 8 follow-up:** placeholders don't survive Git sync / deployment pipeline → deploy the Eventstream with
+- [x] **Step 8 follow-up (done 2026-11-13 via `deploy_stage.sh`):** placeholders don't survive Git sync / deployment pipeline → deploy the Eventstream with
       `fabric_ops.py push` per stage, and run `kql/schema.kql` per stage from CI as the SP (Kusto scope untested for the SP)
 
 ### Step 5 — Warm path
@@ -304,9 +304,13 @@ pause by **2026-12-08**, buffer to trial end.
 - [x] `monitor.yml` every 30 min while repo variable `MONITOR_PROD=true`: `fabric_ops monitor` flags newest KQL poll
       > 15 min old (poller/Eventstream stopped) or the hourly Silver/Gold run failed / not started for > 90 min; opens one
       issue labelled `prod-run` (or comments on it)
-- [ ] First CD run green as the service principal (dev → test → prod)
-- [ ] Prod schedules: `prod_poller_schedule_enabled = true` + Terraform apply (needs the prod notebooks from the first
-      prod deploy), `MONITOR_PROD=true`
+- [x] First CD run green as the service principal (dev → test → prod), 2026-11-13, `deploy` run 43503957384 (merge of
+      #13): every stage green, ~14 min each. Prod: wheel, Eventstream, 4 notebooks, `schema.kql` (22 commands), dashboard
+      created; smoke run snapshot 40 s · poller 3 min 182 s · Silver 162 s · `nb_gold_dim_station` 142 s (DQ passed); SQL
+      endpoint refresh, `sm_bike_availability` created + full refresh Completed, `act_bike_alerts` created. `fabric_ops
+      monitor` on prod → healthy. No SP permission fixes were needed (Power BI API, Kusto script, Reflex all worked).
+- [ ] Prod schedules: `prod_poller_schedule_enabled = true` (variable default) + Terraform apply (needs the prod
+      notebooks from the first prod deploy), `MONITOR_PROD=true`
 - [ ] Prod 24/7 for 7 days (2026-11-28 → 12-05)
 - [ ] Results: events/day raw vs dedup, events/s, latency p50/p95 per hop, dead-letter rate, SCD2 changes caught, CU use
 - [ ] ADRs (below), `docs/design.md` (scalability, cost, governance, security), README with screenshots
