@@ -1,0 +1,34 @@
+name: deploy-stage
+
+# One stage: push every Git-managed item as the service principal, smoke-run the pipeline, frame the model.
+# Called by deploy.yml; the job's `environment` carries the approval gate (prod: required reviewer).
+on:
+  workflow_call:
+    inputs:
+      environment:
+        type: string
+        required: true
+
+permissions:
+  id-token: write # GitHub OIDC -> Entra service principal (no stored cloud secrets)
+  contents: read
+
+jobs:
+  deploy:
+    name: deploy ${{ inputs.environment }}
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    timeout-minutes: 90
+    concurrency:
+      group: fabric-run-${{ inputs.environment }} # never overlaps a manual fabric-run in the same workspace
+      cancel-in-progress: false
+    env:
+      AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+      AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+      WORKSPACE_ID: ${{ inputs.environment == 'prod' && vars.FABRIC_WORKSPACE_ID_PROD || inputs.environment == 'test' && vars.FABRIC_WORKSPACE_ID_TEST || vars.FABRIC_WORKSPACE_ID_DEV }}
+      ALERT_EMAIL: ${{ secrets.ALERT_EMAIL }} # Activator recipient; a secret so it never shows in public logs
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.3.1
+      - name: Deploy and smoke-run
+        run: tools/deploy_stage.sh "$WORKSPACE_ID"

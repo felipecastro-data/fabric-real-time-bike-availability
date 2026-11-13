@@ -1,6 +1,6 @@
 # Project plan & progress
 
-**Progress: Steps 1–7 done — 7 of 8 steps**
+**Progress: Steps 1–7 done, Step 8 CD built — 7.3 of 8 steps**
 
 Fabric Real-Time Bike Availability: a streaming + CDC/SCD2 platform on the Divvy domain. Operations see which
 Chicago stations are about to run empty or full, minutes ahead; analysts get station history (renames, capacity
@@ -289,13 +289,25 @@ pause by **2026-12-08**, buffer to trial end.
       before the first snapshot) + `date_key` (Chicago); writer is now `foreachBatch` insert-only MERGE (checkpoint `_v2`);
       `nb_gold_dim_station` re-keys windows written before the day's snapshot was applied (`rekey_facts`, retries on a
       concurrent stream write). Dev Gold table + old checkpoint deleted and rebuilt from Bronze.
-- [ ] **Step 8:** per stage, CI runs `fabric_ops kql` (functions + external table), pushes the dashboard, model and
-      Activator (`ALERT_EMAIL` from a repo variable), refreshes the lh_gold SQL endpoint metadata, and frames the model
-      (Power BI refresh API)
+- [x] Per-stage deploy of the serving items: moved to Step 8 `tools/deploy_stage.sh`
 
 ### Step 8 — CD, prod run, showcase
-- [ ] `deploy.yml`: dev (Git sync) → test → prod (approval); bounded smoke run per stage
-- [ ] Prod 24/7 for 7 days; `monitor` workflow opens a GitHub issue if the poller or stream stops
+- [x] `deploy.yml` → `deploy-stage.yml` per stage: dev → test → prod (environment `prod` = required reviewer), all as
+      the service principal. Every stage runs `tools/deploy_stage.sh`: upload wheel → push Eventstream + 4 notebooks →
+      KQL schema → dashboard → **smoke run** (station snapshot, 3-min poll, Silver/Gold `availableNow`, SCD2 + DQ gate)
+      → lh_gold SQL endpoint `refreshMetadata` → push model → frame it (Power BI enhanced refresh, waits for the result)
+      → Activator (recipient from secret `ALERT_EMAIL`). Same Git definitions everywhere, IDs filled per stage (no Git
+      sync / deployment pipeline: placeholders don't survive them). Verified 2026-11-13 on a **fresh test workspace**
+      (as the user): all steps green, DQ gate passed, model framed, Activator created.
+- [x] KQL external table `dim_station` declares its schema (a fresh stage has no Delta table to infer it from; found on
+      test); a unit test keeps it equal to `DIM_SCHEMA`.
+- [x] `monitor.yml` every 30 min while repo variable `MONITOR_PROD=true`: `fabric_ops monitor` flags newest KQL poll
+      > 15 min old (poller/Eventstream stopped) or the hourly Silver/Gold run failed / not started for > 90 min; opens one
+      issue labelled `prod-run` (or comments on it)
+- [ ] First CD run green as the service principal (dev → test → prod)
+- [ ] Prod schedules: `prod_poller_schedule_enabled = true` + Terraform apply (needs the prod notebooks from the first
+      prod deploy), `MONITOR_PROD=true`
+- [ ] Prod 24/7 for 7 days (2026-11-28 → 12-05)
 - [ ] Results: events/day raw vs dedup, events/s, latency p50/p95 per hop, dead-letter rate, SCD2 changes caught, CU use
 - [ ] ADRs (below), `docs/design.md` (scalability, cost, governance, security), README with screenshots
 - [ ] Pause: poller schedule off, stream stopped, Eventhouse retention left in place

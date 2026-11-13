@@ -1,5 +1,6 @@
 import copy
 import json
+import re
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 
@@ -12,7 +13,7 @@ from pyspark.sql import types as T  # noqa: E402
 
 from divvy_rti import dq  # noqa: E402
 from divvy_rti.availability import write_silver_batch  # noqa: E402
-from divvy_rti.dim_station import apply_snapshots, hash_key, rekey_facts  # noqa: E402
+from divvy_rti.dim_station import DIM_COLUMNS, apply_snapshots, hash_key, rekey_facts  # noqa: E402
 from divvy_rti.gbfs import station_information_rows  # noqa: E402
 
 INFO_SCHEMA = T.StructType(
@@ -177,3 +178,10 @@ def test_gold_gets_as_of_version_and_rekey_fixes_late_snapshots(spark, tmp_path)
         .join(spark.read.format("delta").load(p.dim_station), ["station_version_key", "station_id"])
     )
     assert keyed.count() == 4
+
+
+def test_kql_external_table_schema_matches_dim_schema():
+    """kql/schema.kql declares the dim_station columns (a fresh stage has no table to infer them from)."""
+    text = (Path(__file__).parents[2] / "kql" / "schema.kql").read_text()
+    declared = re.search(r"external table dim_station \(([^)]*)\)", text)[1]
+    assert [c.split(":")[0].strip() for c in declared.split(",")] == DIM_COLUMNS

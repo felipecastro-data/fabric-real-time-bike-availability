@@ -1,0 +1,34 @@
+name: deploy
+
+# CD: dev -> test -> prod, one stage after the other; prod waits for approval (environment `prod`).
+# Every stage gets the same Git definitions with its own IDs filled in (fabric_ops placeholders), because
+# placeholders don't survive Git sync or the deployment pipeline.
+on:
+  push:
+    branches: [main]
+    paths: [fabric/**, kql/**, src/**, tools/**, pyproject.toml, .github/workflows/deploy*.yml]
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  dev:
+    uses: ./.github/workflows/deploy-stage.yml
+    with: { environment: dev }
+    secrets: inherit
+  test:
+    needs: dev
+    uses: ./.github/workflows/deploy-stage.yml
+    with: { environment: test }
+    secrets: inherit
+  prod:
+    needs: test
+    uses: ./.github/workflows/deploy-stage.yml
+    with: { environment: prod }
+    secrets: inherit
