@@ -1,6 +1,6 @@
 # Project plan & progress
 
-**Progress: Steps 1–7 done, Step 8 CD green as the service principal, prod schedules set — 7.5 of 8 steps**
+**Progress: Steps 1–7 done, Step 8 CD green as the service principal, prod schedules set (2026-11-28 → 12-05) — 7.5 of 8 steps**
 
 Fabric Real-Time Bike Availability: a streaming + CDC/SCD2 platform on the Divvy domain. Operations see which
 Chicago stations are about to run empty or full, minutes ahead; analysts get station history (renames, capacity
@@ -308,11 +308,13 @@ pause by **2026-12-08**, buffer to trial end.
       created; smoke run snapshot 40 s · poller 3 min 182 s · Silver 162 s · `nb_gold_dim_station` 142 s (DQ passed); SQL
       endpoint refresh, `sm_bike_availability` created + full refresh Completed, `act_bike_alerts` created. `fabric_ops
       monitor` on prod → healthy. No SP permission fixes were needed (Power BI API, Kusto script, Reflex all worked).
-- [ ] Prod schedules: the Terraform apply (#14) failed: `fabric_item_job_scheduler` (provider 1.15.1, latest) rejects
+- [x] Prod schedules (2026-11-13, `deploy` run 43514952065): 4 schedules created, enabled, owner = service principal,
+      window 2026-11-28 → 12-05; dev/test/prod all green again. The Terraform apply (#14) had failed: `fabric_item_job_scheduler` (provider 1.15.1, latest) rejects
       Notebook items ("supported: dataflow, datapipeline, lakehouse"), though the REST API accepts them (probed in dev).
       Fix: schedules in `infra/prod_schedules.json`, upserted by `fabric_ops.py schedule` as the service principal in
       the prod stage of `deploy-stage.yml`; Terraform resources + variables removed. Window end 2026-12-05 stops them
-      on its own. Then `MONITOR_PROD=true`
+      on its own.
+- [ ] `MONITOR_PROD=true` on 2026-11-27 (not earlier: prod is idle until the window, so the monitor would open issues)
 - [ ] Prod 24/7 for 7 days (2026-11-28 → 12-05)
 - [ ] Results: events/day raw vs dedup, events/s, latency p50/p95 per hop, dead-letter rate, SCD2 changes caught, CU use
 - [ ] ADRs (below), `docs/design.md` (scalability, cost, governance, security), README with screenshots
