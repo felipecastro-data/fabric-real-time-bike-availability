@@ -72,9 +72,9 @@ variable "environments" {
 }
 
 variable "prod_poller_schedule_enabled" {
-  description = "Schedule nb_gbfs_poller and nb_silver_availability hourly and nb_bronze_station_information + nb_gold_dim_station daily in prod. The notebooks reach prod through the deployment pipeline, so a fresh environment applies with false first, then true for the 7-day prod run."
+  description = "Schedule nb_gbfs_poller and nb_silver_availability hourly and nb_bronze_station_information + nb_gold_dim_station daily in prod. The notebooks reach prod through the deploy workflow (tools/deploy_stage.sh), so a fresh environment applies with false first, then true for the 7-day prod run; the schedules fire only inside prod_poller_window."
   type        = bool
-  default     = false
+  default     = true
 }
 
 variable "prod_poller_window" {
