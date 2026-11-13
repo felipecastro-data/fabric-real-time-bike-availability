@@ -1,6 +1,6 @@
 # Project plan & progress
 
-**Progress: Step 4 done — 4 of 8 steps**
+**Progress: Step 5 done — 5 of 8 steps**
 
 Fabric Real-Time Bike Availability: a streaming + CDC/SCD2 platform on the Divvy domain. Operations see which
 Chicago stations are about to run empty or full, minutes ahead; analysts get station history (renames, capacity
@@ -103,9 +103,9 @@ definitions (notebooks, KQL schema script, dashboard, semantic model). Same spli
 |---|------|--------|
 | 1 | Foundations & spikes — repo skeleton, CI, OIDC for this repo, HCP workspace, 3 risk spikes | ✅ |
 | 2 | Terraform — 3 workspaces, lakehouses, Eventhouse + KQL DB, Eventstream, shortcuts, deployment pipeline, TF CI | ✅ |
-| 3 | Ingestion — GBFS client, poller notebook, daily `station_information` snapshot | ⬜ |
-| 4 | Hot path — Eventstream routing, KQL tables, update policy, MVs, retention | ⬜ |
-| 5 | Warm path — Structured Streaming Silver + dead-letter, Gold 15-min fact | ⬜ |
+| 3 | Ingestion — GBFS client, poller notebook, daily `station_information` snapshot | ✅ |
+| 4 | Hot path — Eventstream routing, KQL tables, update policy, MVs, retention | ✅ |
+| 5 | Warm path — Structured Streaming Silver + dead-letter, Gold 15-min fact | ✅ |
 | 6 | CDC / SCD2 — hash-diff `dim_station`, trips bridge, DQ gate | ⬜ |
 | 7 | Serving — Real-Time Dashboard, Activator email, Direct Lake model with `fact_trips` | ⬜ |
 | 8 | CD, 7-day prod run, measured results, ADRs, design doc, README, pause | ⬜ |
@@ -216,10 +216,28 @@ pause by **2026-12-08**, buffer to trial end.
       `fabric_ops.py push` per stage, and run `kql/schema.kql` per stage from CI as the SP (Kusto scope untested for the SP)
 
 ### Step 5 — Warm path
-- [ ] `silver/availability.py`: watermark 10 min, dedup within watermark, validation rules → dead-letter with reason codes
-- [ ] `foreachBatch` MERGE keyed by `(station_id, last_reported)` → replay-safe; checkpoint under `Files/checkpoints/`
-- [ ] Gold `fact_availability_15min` (append-mode windowed aggregate)
-- [ ] Trigger: `processingTime=1 min` in prod, `availableNow` in dev/test/CI; restart test proves exactly-once (row counts equal after kill + resume)
+- [x] `divvy_rti/availability.py` (one module, not `silver/availability.py`): stateless, deterministic validation →
+      `availability_deadletter` with reason codes `unsupported_schema`, `missing_field`, `bad_timestamp`,
+      `negative_count`, `impossible_count` (e-bikes > bikes), `future_report` (> 5 min ahead of the poll), `late`
+      (enqueued > 10 min after the poll). **Stale reporters are flagged (`is_stale`, > 1 h, same rule as KQL), not
+      dead-lettered** (source fact above: flag, don't drop).
+- [x] `foreachBatch` insert-only MERGE keyed by `(station_id, last_reported)` (first poll that saw it wins), partitioned
+      by `report_date` with a literal partition list in the MERGE condition (prunes files); dead-letter MERGE keyed by a
+      SHA-256 of the Bronze row → both replay-safe. Checkpoints in `lh_silver|lh_gold/Files/checkpoints/`.
+- [x] Gold `fact_availability_15min` from **every valid poll**, not the deduped Silver (an idle station is still observed
+      each minute): watermark 10 min on `polled_at`, `dropDuplicatesWithinWatermark(station_id, poll_id)`, 15-min
+      windows, append mode (a window is written once the watermark passes its end). Polls are 60 s apart, so
+      `minutes_empty/full/offline` = matching polls.
+- [x] Trigger: `duration_minutes = 0` → `availableNow` (dev/test/CI); prod = hourly schedule (Terraform, same gate and
+      window as the poller), `processingTime = 1 min` for 50 min, stop between batches (two runs never share a checkpoint).
+      Local tests (Spark 3.5.5 + Delta 3.2.1): reason codes, dedup, Gold windows, **two-part run + replayed batch =
+      one-shot run** (exactly-once), bounded trigger run.
+- [x] Dev 2026-11-13 (`nb_silver_availability`, `availableNow`, as the user): Bronze 12,474 rows (6 polls) → **Silver 6,199
+      = Bronze distinct `(station_id, last_reported)`**, dead-letter 0, 913 stale flagged; Gold 2,079 rows (the closed
+      window; newer windows wait for the watermark). Run 1 read Bronze before the last poll's commits landed (≤ 120 s
+      flush); run 2 resumed from the checkpoint and caught up. Fabric quirk: `createIfNotExists` on an existing OneLake
+      path fails with `SCHEMA_NOT_FOUND` → check `isDeltaTable` first.
+- [ ] **Step 8 follow-up:** service-principal run of `nb_silver_availability` (Spark notebook, not tested as the SP yet)
 
 ### Step 6 — CDC / SCD2
 - [ ] `gold/dim_station.py`: hash-diff, type 2 vs type 1 attributes, `removed`, single MERGE; durable `station_key`
