@@ -4,6 +4,9 @@ python tools/fabric_ops.py push <workspace-id> fabric/<item>.<Type>      # creat
 python tools/fabric_ops.py upload-wheel <workspace-id>                     # build + upload to lh_bronze/Files/wheels
 python tools/fabric_ops.py run <workspace-id> <notebook> '{"duration_minutes": "3"}'  # RunNotebook job + poll
 python tools/fabric_ops.py kql <workspace-id> kqldb_bikes kql/schema.kql   # `.execute database script`, stop on error
+python tools/fabric_ops.py refresh-sql <workspace-id> lh_gold                 # SQL endpoint metadata sync
+python tools/fabric_ops.py refresh-model <workspace-id> sm_bike_availability  # Direct Lake framing, wait for result
+python tools/fabric_ops.py monitor <workspace-id>                             # prod run health; exit 1 + problems
 
 `push` is the dev bootstrap until the dev workspace is Git-connected (Step 8); test/prod get items from the
 deployment pipeline. `req`, `wait_lro` and `run` are copied from the medallion repo's tools/fabric_ops.py.
@@ -22,23 +25,26 @@ import time
 import urllib.error
 import urllib.request
 from collections.abc import Callable
+from datetime import UTC, datetime
 from pathlib import Path
 
-from fabric_auth import access_token  # fresh GitHub OIDC exchange in CI, az CLI locally
+from fabric_auth import FABRIC_SCOPE, access_token  # fresh GitHub OIDC exchange in CI, az CLI locally
 
 API = "https://api.fabric.microsoft.com/v1"
 ONELAKE = "https://onelake.dfs.fabric.microsoft.com"
 STORAGE_SCOPE = "https://storage.azure.com/.default"
 KUSTO_SCOPE = "https://kusto.kusto.windows.net/.default"
+POWERBI_SCOPE = "https://analysis.windows.net/powerbi/api/.default"
+POWERBI = "https://api.powerbi.com/v1.0/myorg"
 TERMINAL_JOB_STATES = ("Completed", "Failed", "Cancelled", "Deduped")
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def req(method: str, url: str, body: dict | None = None) -> tuple[int, dict, dict | None]:
+def req(method: str, url: str, body: dict | None = None, scope: str = FABRIC_SCOPE) -> tuple[int, dict, dict | None]:
     url = url if url.startswith("http") else API + url
     data = json.dumps(body).encode() if body is not None else None
     for attempt in range(8):
-        headers = {"Authorization": f"Bearer {access_token()}", "Content-Type": "application/json"}
+        headers = {"Authorization": f"Bearer {access_token(scope)}", "Content-Type": "application/json"}
         request = urllib.request.Request(url, data=data, method=method, headers=headers)
         try:
             with urllib.request.urlopen(request, timeout=120) as response:
@@ -182,11 +188,11 @@ def run_notebook(ws: str, name: str, params: dict[str, str]) -> dict:
             return job
 
 
-def kusto_mgmt(query_uri: str, database: str, command: str) -> list[dict]:
-    """Run a Kusto management command; return the primary result as a list of row dicts."""
+def kusto_mgmt(query_uri: str, database: str, command: str, endpoint: str = "mgmt") -> list[dict]:
+    """Run a Kusto management command (or a query with `endpoint="query"`); return the primary result as row dicts."""
     body = json.dumps({"db": database, "csl": command}).encode()
     headers = {"Authorization": f"Bearer {access_token(KUSTO_SCOPE)}", "Content-Type": "application/json"}
-    request = urllib.request.Request(f"{query_uri}/v1/rest/mgmt", data=body, method="POST", headers=headers)
+    request = urllib.request.Request(f"{query_uri}/v1/rest/{endpoint}", data=body, method="POST", headers=headers)
     try:
         with urllib.request.urlopen(request, timeout=300) as response:  # noqa: S310 - Fabric Eventhouse URI
             table = json.load(response)["Tables"][0]
@@ -214,6 +220,57 @@ def apply_kql_script(ws: str, database: str, script: Path) -> int:
     return len(results)
 
 
+def refresh_sql_endpoint(ws: str, lakehouse: str) -> None:
+    """Sync the lakehouse SQL endpoint with new Delta tables before the Direct Lake model is framed."""
+    sql_id = resolve_placeholder(ws, "SqlEndpoint", lakehouse)
+    status, headers, _ = req("POST", f"/workspaces/{ws}/sqlEndpoints/{sql_id}/refreshMetadata", {})
+    if status == 202:
+        wait_lro(headers, f"refresh {lakehouse} SQL endpoint")
+    print(f"  refreshed {lakehouse} SQL endpoint metadata")
+
+
+def refresh_model(ws: str, model: str) -> None:
+    """Frame a Direct Lake model (Power BI refresh) and wait for the outcome."""
+    url = f"{POWERBI}/groups/{ws}/datasets/{workspace_item_id(ws, 'SemanticModel', model)}/refreshes"
+    _, headers, _ = req("POST", url, {"type": "full"}, POWERBI_SCOPE)  # enhanced refresh → Location of this refresh
+    while True:
+        time.sleep(10)
+        _, _, refresh = req("GET", headers["Location"], scope=POWERBI_SCOPE)
+        print(f"  {model}: {refresh['status']}", flush=True)
+        if refresh["status"] == "Completed":
+            return
+        if refresh["status"] in ("Failed", "Cancelled", "Disabled", "TimedOut"):
+            raise SystemExit(json.dumps(refresh.get("messages") or refresh["status"]))
+
+
+HOT_PATH_MAX_AGE_MIN = 15  # poller gap at the hourly reschedule is ~5 min
+WARM_PATH_MAX_GAP_MIN = 90  # Silver stream restarts hourly
+
+
+def monitor(ws: str) -> list[str]:
+    """Problems with the prod run: no recent polls in KQL (poller or Eventstream stopped), or the hourly Silver/Gold
+    stream failed or stopped being scheduled. Empty list = healthy."""
+    problems = []
+    uri = resolve_placeholder(ws, "KQLDatabaseUri", "kqldb_bikes")
+    query = "station_status | summarize age_min = datetime_diff('minute', now(), max(polled_at))"
+    age = kusto_mgmt(uri, "kqldb_bikes", query, endpoint="query")[0]["age_min"]
+    if age is None or age > HOT_PATH_MAX_AGE_MIN:
+        problems.append(f"hot path: newest poll in kqldb_bikes is {age} min old (poller or Eventstream stopped)")
+    item = workspace_item_id(ws, "Notebook", "nb_silver_availability")
+    _, _, jobs = req("GET", f"/workspaces/{ws}/items/{item}/jobs/instances")
+    runs = sorted(jobs["value"], key=lambda j: j.get("startTimeUtc") or "", reverse=True)
+    if not runs:
+        return [*problems, "warm path: nb_silver_availability has never run"]
+    latest = runs[0]
+    started = datetime.fromisoformat(latest["startTimeUtc"][:19]).replace(tzinfo=UTC)
+    gap_min = (datetime.now(UTC) - started).total_seconds() / 60
+    if latest["status"] == "Failed":
+        problems.append(f"warm path: nb_silver_availability run {latest['id']} failed: {latest.get('failureReason')}")
+    elif latest["status"] != "InProgress" and gap_min > WARM_PATH_MAX_GAP_MIN:
+        problems.append(f"warm path: nb_silver_availability last started {gap_min:.0f} min ago (schedule stopped?)")
+    return problems
+
+
 if __name__ == "__main__":
     command, workspace = sys.argv[1], sys.argv[2]
     if command == "push":
@@ -224,5 +281,13 @@ if __name__ == "__main__":
         run_notebook(workspace, sys.argv[3], json.loads(sys.argv[4]) if len(sys.argv) > 4 and sys.argv[4] else {})
     elif command == "kql":
         apply_kql_script(workspace, sys.argv[3], Path(sys.argv[4]))
+    elif command == "refresh-sql":
+        refresh_sql_endpoint(workspace, sys.argv[3])
+    elif command == "refresh-model":
+        refresh_model(workspace, sys.argv[3])
+    elif command == "monitor":
+        found = monitor(workspace)
+        print("\n".join(found) or "healthy")
+        sys.exit(1 if found else 0)
     else:
         raise SystemExit(__doc__)

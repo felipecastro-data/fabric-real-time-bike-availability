@@ -73,7 +73,7 @@
     | order by minute asc
 }
 
-.create-or-alter external table dim_station kind=delta (h@'abfss://{{workspace}}@onelake.dfs.fabric.microsoft.com/{{Lakehouse:lh_gold}}/Tables/dbo/dim_station;impersonate') with (docString = "lh_gold dim_station (SCD2), read in place; stage IDs filled by fabric_ops kql")
+.create-or-alter external table dim_station (station_version_key:long, station_key:long, station_id:string, trips_station_key:long, name:string, short_name:string, station_type:string, capacity:long, lat:real, lon:real, region_id:string, address:string, is_charging:bool, type2_hash:string, valid_from:datetime, valid_to:datetime, is_current:bool, change_reason:string, end_reason:string, snapshot_date:datetime) kind=delta (h@'abfss://{{workspace}}@onelake.dfs.fabric.microsoft.com/{{Lakehouse:lh_gold}}/Tables/dbo/dim_station;impersonate') with (docString = "lh_gold dim_station (SCD2), read in place; explicit schema so a fresh stage deploys before the table exists (must match dim_station.DIM_SCHEMA); stage IDs filled by fabric_ops kql")
 
 .create-or-alter function with (folder = "serving", docstring = "Current station attributes (name, location, capacity) from lh_gold dim_station") station_info() {
     external_table("dim_station")

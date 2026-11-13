@@ -1,0 +1,56 @@
+name: monitor
+
+# Prod-run watchdog: every 30 min, check that polls keep landing in KQL and the hourly Silver/Gold stream runs.
+# On a problem, open one GitHub issue (label `prod-run`) or comment on the open one. Enabled only while the repo
+# variable MONITOR_PROD is 'true' (set it for the 7-day run, unset it when pausing).
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+  issues: write
+
+concurrency:
+  group: monitor
+  cancel-in-progress: true
+
+jobs:
+  check:
+    if: vars.MONITOR_PROD == 'true' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+      AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+      WORKSPACE_ID: ${{ vars.FABRIC_WORKSPACE_ID_PROD }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.3.1
+      - name: Check prod
+        id: check
+        run: |
+          set +e
+          uv run --no-project python tools/fabric_ops.py monitor "$WORKSPACE_ID" | tee report.txt
+          echo "status=${PIPESTATUS[0]}" >> "$GITHUB_OUTPUT"
+      - name: Open or update issue
+        if: steps.check.outputs.status != '0'
+        run: |
+          {
+            echo "Prod check failed at $(date -u '+%Y-%m-%d %H:%M') UTC ([run]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID)):"
+            echo
+            echo "~~~"
+            cat report.txt
+            echo "~~~"
+          } > body.md
+          open="$(gh issue list --label prod-run --state open --json number --jq '.[0].number')"
+          if [ -n "$open" ]; then
+            gh issue comment "$open" --body-file body.md
+          else
+            gh label create prod-run --color B60205 --description "Prod 24/7 run health" 2>/dev/null || true
+            gh issue create --title "Prod run unhealthy" --label prod-run --body-file body.md
+          fi
+          exit 1
