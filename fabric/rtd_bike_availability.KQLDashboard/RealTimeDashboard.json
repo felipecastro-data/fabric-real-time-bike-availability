@@ -332,7 +332,7 @@
         "kind": "inline",
         "dataSourceId": "f4ace0d4-6e74-52c8-a542-566d3dd2bf01"
       },
-      "text": "near_empty_candidates() | project station_id, name, alert_fill_rate = round(alert_fill_rate, 3), fill_rate_15m = round(fill_rate_15m, 3), fill_rate_1h_ago = round(fill_rate_1h_ago, 3), bikes, docks, polled_at | order by alert_fill_rate asc",
+      "text": "near_empty_candidates() | project station_id, name, alert_fill_rate = round(alert_fill_rate, 3), fill_rate_15m = round(fill_rate_15m, 3), fill_rate_1h_ago = round(fill_rate_1h_ago, 3), bikes, docks, polled_at | top 100 by alert_fill_rate asc",
       "usedVariables": []
     }
   ]
