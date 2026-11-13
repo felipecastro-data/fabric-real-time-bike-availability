@@ -1,0 +1,26 @@
+[
+  {
+    "notebook": "nb_gbfs_poller",
+    "enabled": true,
+    "configuration": {"type": "Cron", "interval": 60, "localTimeZoneId": "UTC",
+                      "startDateTime": "2026-11-28T00:00:00", "endDateTime": "2026-12-05T00:00:00"}
+  },
+  {
+    "notebook": "nb_silver_availability",
+    "enabled": true,
+    "configuration": {"type": "Cron", "interval": 60, "localTimeZoneId": "UTC",
+                      "startDateTime": "2026-11-28T00:00:00", "endDateTime": "2026-12-05T00:00:00"}
+  },
+  {
+    "notebook": "nb_bronze_station_information",
+    "enabled": true,
+    "configuration": {"type": "Daily", "times": ["06:00"], "localTimeZoneId": "Central Standard Time",
+                      "startDateTime": "2026-11-28T00:00:00", "endDateTime": "2026-12-05T00:00:00"}
+  },
+  {
+    "notebook": "nb_gold_dim_station",
+    "enabled": true,
+    "configuration": {"type": "Daily", "times": ["06:30"], "localTimeZoneId": "Central Standard Time",
+                      "startDateTime": "2026-11-28T00:00:00", "endDateTime": "2026-12-05T00:00:00"}
+  }
+]

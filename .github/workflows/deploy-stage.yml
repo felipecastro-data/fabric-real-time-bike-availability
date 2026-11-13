@@ -32,3 +32,6 @@ jobs:
       - uses: astral-sh/setup-uv@v10.3.1
       - name: Deploy and smoke-run
         run: tools/deploy_stage.sh "$WORKSPACE_ID"
+      - name: Prod notebook schedules (owner = service principal)
+        if: inputs.environment == 'prod'
+        run: uv run --no-project python tools/fabric_ops.py schedule "$WORKSPACE_ID" infra/prod_schedules.json

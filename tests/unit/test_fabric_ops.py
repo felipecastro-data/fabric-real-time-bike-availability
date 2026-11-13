@@ -129,3 +129,28 @@ def test_monitor_flags_stale_polls_failed_and_unscheduled_stream(monkeypatch):
     fake_monitor_env(monkeypatch, None, runs)
     problems = fabric_ops.monitor("ws")
     assert "None min old" in problems[0] and "last started 200 min ago" in problems[1]
+
+
+def test_apply_schedules_creates_updates_and_drops_extras(tmp_path, monkeypatch):
+    spec = tmp_path / "s.json"
+    entries = [
+        {"notebook": "nb_a", "enabled": True, "configuration": {"type": "Cron"}},
+        {"notebook": "nb_b", "enabled": False, "configuration": {"type": "Daily"}},
+    ]
+    spec.write_text(json.dumps(entries))
+    schedules = {"nb_a": [], "nb_b": [{"id": "s1"}, {"id": "s2"}]}
+    calls = []
+
+    def fake_req(method, url, body=None):
+        calls.append((method, url, body))
+        return 200, {}, {"value": schedules[url.split("/")[4]]} if method == "GET" else None
+
+    monkeypatch.setattr(fabric_ops, "workspace_item_id", lambda ws, item_type, name: name)
+    monkeypatch.setattr(fabric_ops, "req", fake_req)
+    assert fabric_ops.apply_schedules("ws", spec) == ["created nb_a", "updated nb_b"]
+    writes = [(m, u.rsplit("/", 1)[-1], b) for m, u, b in calls if m != "GET"]
+    assert writes == [
+        ("POST", "schedules", {"enabled": True, "configuration": {"type": "Cron"}}),
+        ("DELETE", "s2", None),
+        ("PATCH", "s1", {"enabled": False, "configuration": {"type": "Daily"}}),
+    ]
