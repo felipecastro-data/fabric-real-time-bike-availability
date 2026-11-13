@@ -89,7 +89,7 @@
     | order by fill_rate asc, docks desc
 }
 
-.create-or-alter function with (folder = "serving", docstring = "Activator source: stations whose 15-min average fill rate is low and that were >= 30% an hour earlier. Rule: per station_id, fill_rate_15m becomes < 0.1 -> email") near_empty_candidates() {
+.create-or-alter function with (folder = "serving", docstring = "Activator source: every in-service station reporting in the last 15 min. alert_fill_rate = 15-min avg fill rate if the station was >= 30% an hour earlier, else 1.0. Rule: per station_id, alert_fill_rate becomes < 0.1 -> email") near_empty_candidates() {
     let recent = station_status
         | where polled_at > ago(15m) and not(is_stale) and not(is_offline)
         | summarize fill_rate_15m = avg(fill_rate), arg_max(polled_at, num_bikes_available, num_docks_available) by station_id;
@@ -97,10 +97,10 @@
         | where polled_at between (ago(75m) .. ago(60m)) and not(is_stale) and not(is_offline)
         | summarize fill_rate_1h_ago = avg(fill_rate) by station_id;
     recent
-    | join kind=inner hour_ago on station_id
-    | where fill_rate_1h_ago >= 0.3
+    | join kind=leftouter hour_ago on station_id
+    | extend alert_fill_rate = iff(fill_rate_1h_ago >= 0.3, fill_rate_15m, 1.0)
     | join kind=leftouter station_info() on station_id
-    | project station_id, name = coalesce(name, station_id), fill_rate_15m, fill_rate_1h_ago, bikes = num_bikes_available, docks = num_docks_available, polled_at, lat, lon
+    | project station_id, name = coalesce(name, station_id), alert_fill_rate, fill_rate_15m, fill_rate_1h_ago, bikes = num_bikes_available, docks = num_docks_available, polled_at, lat, lon
 }
 
 .create-or-alter function with (folder = "serving", docstring = "Network status from the latest observation per station (reporting in the last 10 min)") network_now() {
