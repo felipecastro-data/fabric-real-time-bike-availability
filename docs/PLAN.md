@@ -1,6 +1,6 @@
 # Project plan & progress
 
-**Progress: Step 7 built (Activator pending) — 6.8 of 8 steps**
+**Progress: Steps 1–7 done — 7 of 8 steps**
 
 Fabric Real-Time Bike Availability: a streaming + CDC/SCD2 platform on the Divvy domain. Operations see which
 Chicago stations are about to run empty or full, minutes ahead; analysts get station history (renames, capacity
@@ -107,7 +107,7 @@ definitions (notebooks, KQL schema script, dashboard, semantic model). Same spli
 | 4 | Hot path — Eventstream routing, KQL tables, update policy, MVs, retention | ✅ |
 | 5 | Warm path — Structured Streaming Silver + dead-letter, Gold 15-min fact | ✅ |
 | 6 | CDC / SCD2 — hash-diff `dim_station`, trips bridge, DQ gate | ✅ |
-| 7 | Serving — Real-Time Dashboard, Activator email, Direct Lake model with `fact_trips` | 🟨 (Activator: you) |
+| 7 | Serving — Real-Time Dashboard, Activator email, Direct Lake model with `fact_trips` | ✅ |
 | 8 | CD, 7-day prod run, measured results, ADRs, design doc, README, pause | ⬜ |
 
 Target dates (trial ends ~2026-12-12): steps 1–7 by **2026-11-27**, prod run **2026-11-28 → 12-05**, write-up and
@@ -269,8 +269,16 @@ pause by **2026-12-08**, buffer to trial end.
       (in service, not stale), poll → ingest p50 1.3 s / p95 20 s. Screenshot `docs/screenshots/`.
 - [x] Alert rule (decided 2026-11-13, instead of "every station < 10 %", which would be hundreds of emails a day):
       **busy stations dropping** = reporting, in-service station whose 15-min average fill rate falls below 10 % after
-      being ≥ 30 % an hour earlier (`near_empty_candidates()`); Activator rule per `station_id`, "becomes < 0.1" → email.
-- [ ] Activator `act_bike_alerts` created in the UI from the dashboard tile (you), then definition exported to Git
+      being ≥ 30 % an hour earlier. `near_empty_candidates()` returns **every** reporting station with
+      `alert_fill_rate` = 15-min fill rate if it was ≥ 30 % an hour earlier, else 1.0, so each station has a value every
+      run and "becomes less than 0.1" is a clean per-station transition.
+- [x] Activator `act_bike_alerts` (2026-11-13): created in the UI from the alert tile (query every 5 min, grouped by
+      `station_id`, `alert_fill_rate` becomes < 0.1 → email), exported to `fabric/act_bike_alerts.Reflex/`. Stage values
+      are placeholders: `{{workspace}}`, `{{KQLDatabase:kqldb_bikes}}`, `{{KQLDashboard:rtd_bike_availability}}`, and the
+      recipient `{{Env:ALERT_EMAIL}}` (env var; the repo is public). Round trip verified: push back to dev, then
+      `getDefinition` returns the same definition. UI lessons: alerts can't be set on **table** tiles; a chart allows
+      **≤ 100 series** (the tile shows the 100 lowest `alert_fill_rate`); the condition fields stay disabled while the tile
+      has no rows (dev poller idle).
 - [x] Direct Lake `sm_bike_availability` (TMDL in Git, SQL endpoint via `{{SqlConnection:lh_gold}}` /
       `{{SqlEndpoint:lh_gold}}`, `directLakeOnly`): `fact_availability_15min` → `dim_station` on **`station_version_key`
       (as-of)**, → `dim_date`; `fact_trips` → `dim_date`; trips ↔ stations through `TREATAS` on `trips_station_key`
@@ -281,8 +289,9 @@ pause by **2026-12-08**, buffer to trial end.
       before the first snapshot) + `date_key` (Chicago); writer is now `foreachBatch` insert-only MERGE (checkpoint `_v2`);
       `nb_gold_dim_station` re-keys windows written before the day's snapshot was applied (`rekey_facts`, retries on a
       concurrent stream write). Dev Gold table + old checkpoint deleted and rebuilt from Bronze.
-- [ ] **Step 8:** per stage, CI runs `fabric_ops kql` (functions + external table), pushes the dashboard and model,
-      refreshes the lh_gold SQL endpoint metadata, and frames the model (Power BI refresh API)
+- [ ] **Step 8:** per stage, CI runs `fabric_ops kql` (functions + external table), pushes the dashboard, model and
+      Activator (`ALERT_EMAIL` from a repo variable), refreshes the lh_gold SQL endpoint metadata, and frames the model
+      (Power BI refresh API)
 
 ### Step 8 — CD, prod run, showcase
 - [ ] `deploy.yml`: dev (Git sync) → test → prod (approval); bounded smoke run per stage

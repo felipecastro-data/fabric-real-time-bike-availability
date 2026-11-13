@@ -31,6 +31,7 @@ NAMING_PREFIXES: dict[str, str] = {
     "Eventstream": "es_",
     "KQLDashboard": "rtd_",
     "SemanticModel": "sm_",
+    "Reflex": "act_",
 }
 
 
