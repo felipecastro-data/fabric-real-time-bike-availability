@@ -256,7 +256,11 @@ pause by **2026-12-08**, buffer to trial end.
       Fabric's older delta-rs **ignores the predicate** and replaced the whole table (dev lost the 2026-11-12 snapshot).
       Now delete-day + append, and the run fails if other days' row count changes. Reproduced locally (0.18.2 overwrites
       all; 1.1.4 respects the predicate; delete + append correct on both).
-- [ ] **Check 2026-11-14:** next dev snapshot keeps 11-13 (`rows_other_days` = 2,079) and SCD2 applies a real day-2 diff
+- [x] **Check 2026-11-14 (dev):** snapshot run kept 11-13 (`rows_in_snapshot` = 2,079, **`rows_other_days` = 2,079**).
+      SCD2 applied the 11-13 21:57 and 11-14 11:40 UTC snapshots: **0 versions opened, 0 type 1 updates, 0 removed,
+      0 new** (no station changed overnight, so the day-2 diff is a no-op). DQ gate passed, all checks (freshness
+      relaxed to 2,880 min). KQL cross-check of `dim_station`: 2,081 rows, latest change still 2026-11-13 20:44 UTC.
+      Note: the run record shows no counts when a snapshot has zero changes (empty `groupBy` result).
 - [x] Service-principal run of `nb_silver_availability` from `main` (`fabric-run`, 2026-11-13): succeeded
 
 ### Step 7 — Serving
